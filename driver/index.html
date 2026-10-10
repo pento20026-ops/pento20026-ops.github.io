@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>سائق تكسي بيجي</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+  tailwind.config = {
+    theme: {
+      extend: {
+        colors: {
+          t: { navy: '#0B1F4B', dark: '#07142F', yel: '#FFC107', soft: '#FFF8E1' }
+        }
+      }
+    }
+  }
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+  body{font-family:'Tajawal',sans-serif;background:#F5F7FB}
+  .in{padding:.75rem;font-size:.85rem;border:1px solid #CBD5E1;border-radius:.75rem;outline:none;width:100%}
+  .in:focus{border-color:#0B1F4B;box-shadow:0 0 0 2px #FFC107}
+  button:active{transform:scale(.96)}
+</style>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0B1F4B">
+<link rel="icon" href="icon-192.png">
+</head>
+<body class="text-t-navy pb-10">
+
+<header class="bg-t-navy text-white sticky top-0 z-40 border-b-4 border-t-yel shadow-lg">
+  <div class="max-w-xl mx-auto px-4 py-3 flex justify-between items-center">
+    <div class="flex items-center gap-3">
+      <div class="w-11 h-11 bg-t-yel rounded-2xl flex items-center justify-center font-black text-t-navy">BT</div>
+      <div>
+        <h1 class="font-black text-t-yel leading-none">سائق تكسي بيجي</h1>
+        <span id="st" class="text-[10px] text-gray-300">غير متصل</span>
+      </div>
+    </div>
+    <button id="out" onclick="playClick(); sb.auth.signOut()" class="hidden bg-t-yel text-t-navy text-xs font-bold px-3 py-2 rounded-xl shadow">خروج</button>
+  </div>
+</header>
+
+<main class="max-w-xl mx-auto px-4 mt-4 space-y-3">
+  <!-- Login Section -->
+  <section id="login" class="bg-white p-6 rounded-3xl border shadow-md space-y-3">
+    <h2 class="font-black text-lg text-t-navy">تسجيل دخول السائق</h2>
+    <input id="em" type="email" dir="ltr" placeholder="البريد الإلكتروني" class="in">
+    <input id="pw" type="password" dir="ltr" placeholder="كلمة السر" class="in">
+    
+    <label class="flex gap-2 items-start text-xs text-gray-700"><input id="dAgree" type="checkbox" class="mt-0.5 w-4 h-4"><span>عند إنشاء حساب: أوافق على <a href="../privacy.html" target="_blank" class="underline font-bold text-blue-700">سياسة الخصوصية</a> وعلى مشاركة موقعي مع الزبون أثناء الرحلة.</span></label>
+    <div class="flex gap-2">
+      <button onclick="playClick(); dLogin();" class="flex-1 bg-t-navy text-t-yel font-bold py-3 rounded-xl shadow">دخول</button>
+      <button onclick="playClick(); dSignUp();" class="flex-1 bg-t-yel text-t-navy font-bold py-3 rounded-xl shadow">إنشاء حساب</button>
+    </div>
+    <button onclick="playClick(); sendReset();" class="w-full text-xs text-blue-700 underline font-bold pt-1">استرداد كلمة السر</button>
+  </section>
+
+  <!-- Driver Reg -->
+  <section id="reg" class="hidden bg-white p-5 rounded-2xl border space-y-3 shadow-md">
+    <h2 class="font-black text-lg text-t-navy">تسجيل بيانات السائق</h2>
+    <p class="text-xs text-gray-500">يرجى ملء البيانات لتفعيل الحساب من قبل الإدارة:</p>
+    <input id="rn" class="in" placeholder="الاسم الكامل">
+    <input id="rPhone" class="in" dir="ltr" placeholder="رقم الهاتف">
+    <input id="rc" class="in" placeholder="نوع السيارة ولونها">
+    <input id="rp" class="in" placeholder="رقم اللوحة">
+    <p class="text-xs font-bold mt-2">الخطوط التي تعمل عليها:</p>
+    <div id="rt" class="grid grid-cols-2 gap-2 text-xs font-bold"></div>
+    <button onclick="playClick(); register();" class="w-full bg-t-navy text-t-yel font-bold py-3 rounded-xl shadow">إرسال للمراجعة</button>
+  </section>
+
+  <!-- Waiting Approval -->
+  <section id="wait" class="hidden bg-white p-6 rounded-2xl border text-center space-y-2 shadow-md">
+    <i class="fa-solid fa-hourglass-half text-4xl text-t-yel animate-pulse"></i>
+    <h2 class="font-black text-t-navy">حسابك قيد المراجعة</h2>
+    <p class="text-xs text-gray-500">سيتم تفعيل حسابك من قبل الإدارة قريباً.</p>
+  </section>
+
+  <!-- Main Dashboard -->
+  <section id="main" class="hidden space-y-3">
+    <button id="onb" onclick="playClick(); toggleOnline();" class="w-full py-4 rounded-2xl font-black text-lg bg-gray-300 shadow">غير متصل — اضغط للاتصال</button>
+    <div id="act"></div>
+    <div id="list" class="space-y-3"></div>
+  </section>
+</main>
+
+<p class="text-center text-xs text-gray-400 mt-6 mb-8"><a href="../privacy.html" class="underline">سياسة الخصوصية</a> · <a onclick="delAcc()" class="underline cursor-pointer">حذف حسابي</a></p>
+
+<div id="locModal" class="fixed inset-0 bg-black/80 z-[150] hidden items-center justify-center p-5">
+  <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 border-2 border-t-yel shadow-2xl">
+    <div class="text-center"><i class="fa-solid fa-location-crosshairs text-4xl text-t-navy"></i></div>
+    <h3 class="font-black text-center text-lg">استخدام الموقع</h3>
+    <p class="text-sm text-gray-700 leading-relaxed">يجمع التطبيق موقعك الدقيق <b>أثناء فتح التطبيق فقط وخلال رحلة نشطة</b> ويُرسله إلى الزبون ليتابع وصولك. لا يُجمع الموقع والتطبيق مغلق.</p>
+    <p class="text-[11px] text-gray-500 text-center">التفاصيل في <a href="../privacy.html" class="underline">سياسة الخصوصية</a>.</p>
+    <div class="flex gap-2">
+      <button onclick="locNo()" class="flex-1 bg-gray-100 font-bold py-3 rounded-xl text-sm">ليس الآن</button>
+      <button onclick="locYes()" class="flex-1 bg-t-yel text-t-navy font-black py-3 rounded-xl text-sm border border-t-navy">موافق</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 bg-t-navy text-white text-xs font-bold px-4 py-3 rounded-xl z-[90] hidden border border-t-yel shadow-2xl"></div>
+
+<script>
+const SUPABASE_URL='https://xvrfcqhnzrkjzmqvxanl.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2cmZjcWhuenJranptcXZ4YW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1MzIzMzIsImV4cCI6MjEwNzEwODMzMn0.iiuuAVfo4jtCFxAIRrO6W9HhGUJjskSIbCAG_Cjpasw';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const TN={provincial:'تكسي محافظات',district:'تكسي أقضية ونواحي',local:'تكسي محلي',private:'تكسي خصوصي',shared:'تكسي عام'};
+const END=['مكتملة','مرفوضة','ملغاة','لم يحضر'];
+
+const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+function playClick(){
+  try {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sine'; osc.frequency.setValueAtTime(800, audioCtx.currentTime);
+    gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.05);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+  }catch(e){}
+}
+function playAlert(){
+  try {
+    if(audioCtx.state === 'suspended') audioCtx.resume();
+    const osc = audioCtx.createOscillator(); const gain = audioCtx.createGain();
+    osc.type = 'sawtooth'; osc.frequency.setValueAtTime(440, audioCtx.currentTime);
+    osc.frequency.setValueAtTime(880, audioCtx.currentTime + 0.15);
+    gain.gain.setValueAtTime(0.2, audioCtx.currentTime);
+    gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + 0.4);
+    osc.connect(gain); gain.connect(audioCtx.destination); osc.start(); osc.stop(audioCtx.currentTime + 0.4);
+  }catch(e){}
+}
+
+let user=null,me=null,rides=[],last=null,known={},started=false;
+function toast(t){const e=$('toast');e.textContent=t;e.classList.remove('hidden');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.add('hidden'),3500)}
+function view(v){['login','reg','wait','main'].forEach(x=>$(x).classList.toggle('hidden',x!==v));$('out').classList.toggle('hidden',v==='login')}
+
+async function dLogin(){const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return toast('أدخل البيانات');const{error}=await sb.auth.signInWithPassword({email,password});if(error)toast(error.message)}
+async function dSignUp(){const email=$('em').value.trim(),password=$('pw').value;if(!email||!password)return toast('أدخل البيانات');if(!$('dAgree').checked)return toast('يجب الموافقة على سياسة الخصوصية');const{error}=await sb.auth.signUp({email,password});if(error)toast(error.message)}
+async function sendReset(){const email=$('em').value.trim();if(!email)return toast('أدخل بريدك');const{error}=await sb.auth.resetPasswordForEmail(email);toast(error?error.message:'تم إرسال رابط الاسترداد بريدياً')}
+
+sb.auth.onAuthStateChange((_,s)=>{user=s?.user||null;user?init():view('login')});
+$('rt').innerHTML=Object.entries(TN).map(([k,v])=>`<label class="flex gap-2 items-center bg-t-soft p-2 rounded-lg border border-yellow-200"><input type="checkbox" value="${k}"> ${v}</label>`).join('');
+
+async function register(){
+  const types=[...document.querySelectorAll('#rt input:checked')].map(x=>x.value),name=$('rn').value.trim(),phone=$('rPhone').value.trim();
+  if(!name||!phone||!types.length)return toast('يرجى ملء كافة الحقول المتروكة');
+  const{error}=await sb.from('drivers').insert([{user_id:user.id,name,phone,car:$('rc').value.trim(),plate:$('rp').value.trim(),types}]);
+  error?toast(error.message):init();
+}
+
+async function init(){
+  const{data}=await sb.from('drivers').select('*').eq('user_id',user.id).maybeSingle();me=data;
+  if(!me)return view('reg');if(!me.verified)return view('wait');view('main');setOnlineUI();await load();if(started)return;started=true;
+  sb.channel('drv').on('postgres_changes',{event:'*',schema:'public',table:'rides'},p=>{
+    if(p.eventType==='INSERT'){playAlert();if(navigator.vibrate)navigator.vibrate([300,100,300]);toast('🚕 طلب جديد متوفر!');load()}
+    else load();
+  }).subscribe();
+  askGeo();
+  setInterval(()=>{const a=active();if(a&&last)sb.rpc('driver_ping',{rid:a.id,la:last[0],lo:last[1]})},5000);
+}
+
+function locOk(){try{return localStorage.getItem('locOK')==='1'}catch(e){return false}}
+let geoOn=false;
+function startGeo(){if(geoOn||!navigator.geolocation)return;geoOn=true;navigator.geolocation.watchPosition(p=>last=[p.coords.latitude,p.coords.longitude],()=>{geoOn=false},{enableHighAccuracy:true})}
+function askGeo(){if(locOk())startGeo();else $('locModal').classList.replace('hidden','flex')}
+function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}$('locModal').classList.replace('flex','hidden');startGeo()}
+function locNo(){$('locModal').classList.replace('flex','hidden')}
+async function delAcc(){if(!user)return toast('سجّل الدخول أولاً');if(!confirm('تأكيد حذف الحساب وبياناتك نهائياً؟'))return;const{error}=await sb.rpc('delete_my_account');if(error)return toast(error.message);await sb.auth.signOut();toast('تم حذف الحساب')}
+function setOnlineUI(){const b=$('onb');b.className='w-full py-4 rounded-2xl font-black text-lg shadow '+(!me.online?'bg-gray-300 text-gray-700':'bg-green-600 text-white');b.textContent=me.online?'🟢 متصل — استلام الطلبات مفعّل':'غير متصل — اضغط للاتصال';$('st').textContent=me.online?'متصل':'غير متصل'}
+async function toggleOnline(){const{error}=await sb.from('drivers').update({online:!me.online}).eq('user_id',user.id);if(error)return toast(error.message);me.online=!me.online;setOnlineUI();load()}
+const active=()=>rides.find(r=>r.driver_id===user.id&&!END.includes(r.status));
+async function load(){const{data,error}=await sb.from('rides').select('*').order('created_at',{ascending:false}).limit(30);if(error)return toast(error.message);rides=data;draw()}
+const nav=(a,b)=>`https://www.google.com/maps/dir/?api=1&destination=${a},${b}&travelmode=driving`;
+
+function draw(){
+  const a=active();
+  $('act').innerHTML=a?`<div class="bg-t-navy text-white p-5 rounded-2xl space-y-3 border-2 border-t-yel shadow-xl"><div class="flex justify-between items-center"><b class="text-t-yel text-base">${esc(TN[a.type])}</b><b class="text-lg">${Number(a.fare)} د.ع</b></div>
+  <p class="font-bold text-sm"><i class="fa-solid fa-user text-t-yel"></i> ${esc(a.customer_name)}</p>
+  <a href="tel:${esc(a.customer_phone)}" class="block text-center bg-green-600 font-black py-3 rounded-xl shadow"><i class="fa-solid fa-phone"></i> اتصل بالزبون (${esc(a.customer_phone)})</a>
+  ${a.status==='السائق في الطريق'?`<a target="_blank" href="${nav(a.pickup_lat,a.pickup_lng)}" class="block text-center bg-white text-t-navy font-bold py-3 rounded-xl shadow">🧭 الملاحة إلى الزبون</a><button onclick="playClick(); setS(${a.id},'بدأت الرحلة')" class="w-full bg-t-yel text-t-navy font-black py-3 rounded-xl shadow">بدأت الرحلة</button>`
+  :`<a target="_blank" href="${nav(a.drop_lat,a.drop_lng)}" class="block text-center bg-white text-t-navy font-bold py-3 rounded-xl shadow">🧭 الملاحة إلى الوجهة</a><button onclick="playClick(); setS(${a.id},'مكتملة')" class="w-full bg-t-yel text-t-navy font-black py-3 rounded-xl shadow">إنهاء الرحلة</button>`}</div>`:'';
+  
+  const nw=rides.filter(r=>r.status==='جديد');
+  $('list').innerHTML=a?'':(nw.map(r=>`<div class="bg-white p-4 rounded-2xl border shadow-sm space-y-2"><div class="flex justify-between font-bold"><span>${esc(TN[r.type])}</span><span class="text-t-navy">${Number(r.fare)} د.ع</span></div><p class="text-xs text-gray-500">${Number(r.distance_km)} كم ${r.type==='shared'?'· '+r.seats+' مقعد':''}</p><button onclick="playClick(); acc(${r.id})" class="w-full bg-t-yel text-t-navy font-black py-3 rounded-xl shadow">استلام الطلب</button></div>`).join('')||`<p class="text-center text-xs text-gray-400 py-8">${me.online?'بانتظار طلبات جديدة...':'قم بالاتصال لتلقي الطلبات'}</p>`);
+}
+
+async function acc(id){const{data,error}=await sb.rpc('accept_ride',{rid:id});if(error){toast(error.message);return load()}toast('✅ تم استلام الطلب');await load()}
+async function setS(id,s){const{error}=await sb.rpc('driver_status',{rid:id,s});if(error)toast(error.message);load()}
+</script>
+</body>
+</html>
+
