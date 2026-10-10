@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>إدارة تكسي بيجي</title>
+<script src="https://cdn.tailwindcss.com"></script>
+<script>tailwind.config={theme:{extend:{colors:{t:{navy:'#0B1F4B',dark:'#07142F',yel:'#FFC107',yeld:'#E0A800',soft:'#FFF8E1'}}}}}</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>body{font-family:'Tajawal',sans-serif;background:#F5F7FB}.in{padding:.6rem;font-size:.75rem;border:1px solid #ddd;border-radius:.75rem;outline:none;width:100%}.in:focus{box-shadow:0 0 0 2px #FFC107}
+.fade{animation:f .4s both}@keyframes f{from{opacity:0;transform:translateY(10px)}}button:active{transform:scale(.96)}</style>
+<link rel="manifest" href="manifest.webmanifest"><meta name="theme-color" content="#0B1F4B"><link rel="icon" href="icon-192.png"><link rel="apple-touch-icon" href="icon-192.png">
+</head>
+<body class="text-t-navy pb-12">
+
+<div id="login" class="min-h-screen flex items-center justify-center p-4 bg-t-navy">
+ <div class="fade bg-white w-full max-w-sm rounded-3xl p-6 space-y-3">
+  <div class="w-20 h-20 mx-auto bg-t-yel rounded-3xl border-4 border-t-navy flex items-center justify-center"><span class="text-lg font-black text-t-navy">Taxe</span></div>
+  <h1 class="text-center font-black text-lg">لوحة إدارة تكسي بيجي</h1>
+  <input id="em" type="email" dir="ltr" placeholder="البريد الإلكتروني" class="in !p-3 !text-sm">
+  <input id="pw" type="password" dir="ltr" placeholder="كلمة المرور" class="in !p-3 !text-sm">
+  <button onclick="doLogin()" class="w-full bg-t-yel font-black py-3 rounded-xl">دخول الأدمن</button>
+ </div>
+</div>
+
+<div id="app" class="hidden">
+ <header class="bg-t-navy text-white sticky top-0 z-40 border-b-4 border-t-yel">
+  <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
+   <div class="flex items-center gap-3"><div class="w-12 h-12 bg-t-yel rounded-2xl flex items-center justify-center"><span class="text-sm font-black text-t-navy">Taxe</span></div>
+   <div><h1 class="font-extrabold text-t-yel leading-none">لوحة الإدارة</h1><span class="text-[10px] text-gray-300">تحديث مباشر</span></div></div>
+   <button onclick="sb.auth.signOut().then(()=>location.reload())" class="bg-t-yel text-t-navy text-xs font-bold px-3 py-2 rounded-xl">خروج</button>
+  </div>
+ </header>
+ <main class="max-w-5xl mx-auto px-4 py-5 space-y-5">
+  <section class="bg-white p-5 rounded-2xl border">
+   <h2 class="font-bold text-lg mb-3"><i class="fa-solid fa-bell text-t-yeld"></i> الرحلات</h2>
+   <div id="rides" class="space-y-3"></div>
+  </section>
+  <section class="bg-white p-5 rounded-2xl border">
+   <h2 class="font-bold text-lg mb-3"><i class="fa-solid fa-tags text-t-yeld"></i> أسعار الرحلات</h2>
+   <div id="types" class="space-y-2"></div>
+  </section>
+  <section class="bg-white p-5 rounded-2xl border"><h2 class="font-bold text-lg mb-3"><i class="fa-solid fa-id-card text-t-yeld"></i> السائقون (تفعيل / تعديل / حذف)</h2><div id="drv" class="space-y-2"></div></section>
+  <section class="bg-white p-5 rounded-2xl border"><h2 class="font-bold text-lg mb-3"><i class="fa-solid fa-user-slash text-t-yeld"></i> الزبائن المخالفون</h2><div id="custList" class="space-y-2"></div></section>
+ </main>
+</div>
+<div id="toast" class="fixed top-4 left-1/2 -translate-x-1/2 bg-t-navy text-white text-xs font-bold px-4 py-3 rounded-xl z-[90] hidden border border-t-yel"></div>
+
+<script>
+const SUPABASE_URL='https://xvrfcqhnzrkjzmqvxanl.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2cmZjcWhuenJranptcXZ4YW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1MzIzMzIsImV4cCI6MjEwNzEwODMzMn0.iiuuAVfo4jtCFxAIRrO6W9HhGUJjskSIbCAG_Cjpasw';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+let TN={},seen={};
+const ST=['جديد','تم القبول','السائق في الطريق','بدأت الرحلة','مكتملة','مرفوضة','ملغاة','لم يحضر'];
+function toast(t){const e=$('toast');e.textContent=t;e.classList.remove('hidden');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.add('hidden'),3500)}
+
+async function doLogin(){const{error}=await sb.auth.signInWithPassword({email:$('em').value.trim(),password:$('pw').value});if(error)return toast(error.message==='Invalid login credentials'?'الإيميل أو كلمة المرور غير صحيحة':'خطأ: '+error.message);boot()}
+async function boot(){
+ const{data:{session}}=await sb.auth.getSession();if(!session)return;
+ const{data,error:ae}=await sb.from('admins').select('user_id').eq('user_id',session.user.id).maybeSingle();
+ if(ae)return toast('خطأ بالقاعدة: '+ae.message);
+ if(!data){await sb.auth.signOut();return toast('ليس أدمن. معرّفك: '+session.user.id)}
+ $('login').classList.add('hidden');$('app').classList.remove('hidden');await loadTypes();loadRides();loadCust();loadDrivers();
+ sb.channel('ar').on('postgres_changes',{event:'INSERT',schema:'public',table:'rides'},p=>{
+  try{new Audio('https://assets.mixkit.co/active_storage/sfx/2869/2869-preview.mp3').play()}catch(e){}
+  toast('🔔 طلب تكسي جديد من '+p.new.customer_name);loadRides()}).on('postgres_changes',{event:'UPDATE',schema:'public',table:'rides'},p=>{const n=p.new;if(seen[n.id]===n.status)return;seen[n.id]=n.status;
+  const m={'السائق في الطريق':'🚕 '+n.driver_name+' استلم طلب '+n.customer_name,'بدأت الرحلة':'▶️ بدأت رحلة '+n.customer_name,'مكتملة':'✅ اكتملت رحلة '+n.customer_name,'ملغاة':'❌ ألغى '+n.customer_name+' طلبه'};
+  if(m[n.status])toast(m[n.status]);loadRides()}).on('postgres_changes',{event:'*',schema:'public',table:'drivers'},loadDrivers).subscribe()}
+
+async function loadTypes(){const{data,error}=await sb.from('ride_types').select('*').order('sort');if(error)return toast(error.message);
+ data.forEach(t=>TN[t.key]=t.name);
+ $('types').innerHTML=data.map(t=>`<div class="flex gap-2 items-center text-xs"><b class="w-32 shrink-0">${esc(t.name)}</b><label class="flex-1">أجرة البداية<input type="number" class="in" value="${Number(t.base)}" onchange="price('${t.key}',{base:Number(this.value)})"></label><label class="flex-1">سعر الكم<input type="number" class="in" value="${Number(t.per_km)}" onchange="price('${t.key}',{per_km:Number(this.value)})"></label></div>`).join('')}
+async function price(k,v){const{error}=await sb.from('ride_types').update(v).eq('key',k);toast(error?'❌ '+error.message:'✅ تم الحفظ')}
+
+async function loadRides(){const{data,error}=await sb.from('rides').select('*').order('created_at',{ascending:false}).limit(50);if(error)return toast(error.message);
+ data.forEach(o=>seen[o.id]=o.status);$('rides').innerHTML=data.map(o=>`<div class="fade p-3 bg-t-soft border rounded-xl text-xs space-y-2">
+  <div class="flex justify-between"><b class="text-sm">${esc(o.customer_name)} · <a href="tel:${esc(o.customer_phone)}" class="text-blue-700">${esc(o.customer_phone)}</a></b><b>${Number(o.fare)} د.ع</b></div>
+  <p><span class="bg-t-yel font-bold px-2 py-0.5 rounded">${esc(TN[o.type]||o.type)}</span> ${o.type==='shared'?`· ${o.seats} مقعد`:''} · ${Number(o.distance_km)} كم ${o.pickup_text?'· '+esc(o.pickup_text):''}</p>
+  <p><a class="text-blue-600 underline" target="_blank" href="https://maps.google.com/?q=${o.pickup_lat},${o.pickup_lng}">📍 الانطلاق</a> &nbsp; <a class="text-blue-600 underline" target="_blank" href="https://maps.google.com/?q=${o.drop_lat},${o.drop_lng}">🏁 الوجهة</a> &nbsp; <a class="text-blue-600 underline" target="_blank" href="https://www.google.com/maps/dir/${o.pickup_lat},${o.pickup_lng}/${o.drop_lat},${o.drop_lng}">المسار</a></p>
+  <p class="text-gray-700">🚕 ${esc(o.driver_name||'لم يُستلم بعد')} ${o.driver_phone?'· '+esc(o.driver_phone):''} ${o.started_at&&o.completed_at?'· ⏱ '+Math.round((new Date(o.completed_at)-new Date(o.started_at))/60000)+' د':''}</p><div class="flex gap-1"><input id="dn${o.id}" class="in" placeholder="اسم السائق" value="${esc(o.driver_name||'')}"><input id="dp${o.id}" class="in" dir="ltr" placeholder="هاتف السائق" value="${esc(o.driver_phone||'')}"><button onclick="drv(${o.id})" class="bg-t-navy text-t-yel font-bold px-3 rounded-xl">حفظ</button></div>
+  ${o.status==='جديد'?`<div class="flex gap-2"><button onclick="st(${o.id},'تم القبول')" class="flex-1 bg-t-yel font-bold py-2 rounded-lg">✅ قبول</button><button onclick="st(${o.id},'مرفوضة')" class="flex-1 bg-red-500 text-white font-bold py-2 rounded-lg">❌ رفض</button></div>`
+  :`<div class="flex gap-2 items-center">${['السائق في الطريق','بدأت الرحلة'].includes(o.status)?`<button onclick="noShow(${o.id})" class="bg-red-100 text-red-700 font-bold px-3 py-2 rounded-lg">🚫 لم يحضر</button>`:''}<select onchange="st(${o.id},this.value)" class="in !w-auto">${ST.map(x=>`<option ${o.status===x?'selected':''}>${x}</option>`).join('')}</select></div>`}
+ </div>`).join('')||'<p class="text-xs text-gray-400">لا توجد رحلات</p>'}
+async function st(id,s){const{error}=await sb.from('rides').update({status:s}).eq('id',id);if(error)toast('❌ '+error.message);loadRides()}
+async function drv(id){const{error}=await sb.from('rides').update({driver_name:$('dn'+id).value.trim()||null,driver_phone:$('dp'+id).value.trim()||null}).eq('id',id);toast(error?'❌ '+error.message:'✅ تم حفظ السائق');loadRides()}
+async function noShow(id){if(!confirm('تأكيد أن الزبون لم يحضر؟ ستُسجَّل عليه مخالفة'))return;const{error}=await sb.rpc('admin_ride_no_show',{rid:id});toast(error?'❌ '+error.message:'تم تسجيل المخالفة');loadRides();loadCust()}
+async function loadCust(){const{data}=await sb.from('customers').select('*').order('strikes',{ascending:false});$('custList').innerHTML=(data||[]).map(c=>`<div class="flex justify-between items-center text-xs p-2 bg-t-soft rounded-xl"><span><b>${esc(c.name)}</b> · ${esc(c.phone)} · مخالفات: ${c.strikes}</span><button onclick="blk('${c.user_id}',${!c.blocked})" class="${c.blocked?'bg-t-yel':'bg-red-100 text-red-700'} font-bold px-3 py-1.5 rounded-lg">${c.blocked?'فك الحظر':'حظر'}</button></div>`).join('')||'<p class="text-xs text-gray-400">لا يوجد زبائن مخالفون</p>'}
+async function blk(id,b){const v={blocked:b};if(!b)v.strikes=0;const{error}=await sb.from('customers').update(v).eq('user_id',id);toast(error?'❌ '+error.message:'تم');loadCust()}
+async function loadDrivers(){const{data,error}=await sb.from('drivers').select('*').order('verified').order('created_at',{ascending:false});if(error)return toast(error.message);
+ $('drv').innerHTML=(data||[]).map(d=>`<div class="p-3 bg-t-soft rounded-xl text-xs space-y-2 ${d.verified?'':'border-2 border-red-400'}"><div class="flex justify-between"><b>${esc(d.name)} · <a href="tel:${esc(d.phone)}" class="text-blue-700">${esc(d.phone)}</a></b><span>${d.online?'🟢':'⚪'} ${d.verified?'مفعّل':'بانتظار التفعيل'}</span></div>
+ <div class="flex gap-1"><input class="in" value="${esc(d.car)}" onchange="dupd('${d.user_id}',{car:this.value})"><input class="in" value="${esc(d.plate)}" onchange="dupd('${d.user_id}',{plate:this.value})"></div>
+ <div class="flex flex-wrap gap-2">${Object.entries(TN).map(([k,v])=>`<label><input type="checkbox" data-u="${d.user_id}" value="${k}" ${(d.types||[]).includes(k)?'checked':''} onchange="dtypes('${d.user_id}')"> ${esc(v)}</label>`).join('')}</div>
+ <div class="flex gap-2"><button onclick="dupd('${d.user_id}',{verified:${!d.verified}})" class="flex-1 ${d.verified?'bg-gray-200':'bg-t-yel'} font-bold py-2 rounded-lg">${d.verified?'إيقاف':'✅ تفعيل'}</button><button onclick="ddel('${d.user_id}')" class="bg-red-100 text-red-700 font-bold px-3 rounded-lg">حذف</button></div></div>`).join('')||'<p class="text-xs text-gray-400">لا يوجد سائقون</p>'}
+async function dupd(id,v){const{error}=await sb.from('drivers').update(v).eq('user_id',id);toast(error?'❌ '+error.message:'✅ تم');loadDrivers()}
+function dtypes(id){dupd(id,{types:[...document.querySelectorAll(`input[data-u="${id}"]:checked`)].map(x=>x.value)})}
+async function ddel(id){if(!confirm('حذف السائق؟'))return;const{error}=await sb.from('drivers').delete().eq('user_id',id);toast(error?'❌ '+error.message:'تم الحذف');loadDrivers()}
+boot();
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js')</script>
+</body>
+</html>
