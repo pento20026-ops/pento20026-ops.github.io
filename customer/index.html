@@ -14,7 +14,7 @@ tailwind.config={theme:{extend:{colors:{t:{navy:'#0B1F4B',dark:'#07142F',yel:'#F
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- OpenLayers Map Library (تضمن دعم اللغة العربية بالكامل ودعم GPS ممتازا) -->
+<!-- OpenLayers Map Library (تدعم اللغة العربية بدون حروف مقلوبة) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
 <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
 
@@ -280,7 +280,7 @@ function pick(k){
   $('form').classList.remove('hidden');est();$('form').scrollIntoView({behavior:'smooth'});
 }
 
-function dist(a,b){const r=x=>x*Math.PI/180,h=Math.sin(r(b[0]-a[0])/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[1]-a[1])/2)**2;return Math.round(12742*Math.asin(Math.sqrt(h))*1.25*10)/10}
+function dist(a,b){const r=x=>x*Math.PI/180,h=Math.sin(r(b[0]-a[0])/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(r(b[1]-a[1])/2)**2;return Math.round(12742*Math.asin(Math.sqrt(h))*1.25*10)/10}
 function est(){
   if(!P||!D||!sel){$('fare').textContent='—';$('km').textContent='';return}
   const t=T.find(x=>x.key===sel),km=dist(P,D),n=sel==='shared'?Number($('seats').value):1;
@@ -288,9 +288,9 @@ function est(){
   $('fare').textContent=Math.round((Number(t.base)+km*Number(t.per_km))*n/250)*250+' د.ع';
 }
 
-/* ===== طلب إذن GPS والموقع تلقائياً ===== */
+/* ===== الخريطة وطلب الموقع GPS ===== */
 function locOk(){try{return localStorage.getItem('locOK')==='1'}catch(e){return false}}
-function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc();else gps();}
+function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc();}
 function locNo(){hide('locModal')}
 
 function openMap(m){
@@ -315,4 +315,8 @@ function openMap(m){
       mapView.setCenter(projCoord);
       mapView.setZoom(15);
     }
-    gps(); // طلب الموقع وت
+  },250);
+}
+
+function gps(){
+  if(!l
