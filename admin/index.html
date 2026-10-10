@@ -17,7 +17,7 @@
 
 <div id="login" class="min-h-screen flex items-center justify-center p-4 bg-t-navy">
  <div class="fade bg-white w-full max-w-sm rounded-3xl p-6 space-y-3">
-  <div class="w-20 h-20 mx-auto bg-t-yel rounded-3xl border-4 border-t-navy flex items-center justify-center"><span class="text-lg font-black text-t-navy">Taxe</span></div>
+  <img src="icon-192.png" class="w-20 h-20 mx-auto rounded-3xl border-4 border-t-navy" alt="">
   <h1 class="text-center font-black text-lg">لوحة إدارة تكسي بيجي</h1>
   <input id="em" type="email" dir="ltr" placeholder="البريد الإلكتروني" class="in !p-3 !text-sm">
   <input id="pw" type="password" dir="ltr" placeholder="كلمة المرور" class="in !p-3 !text-sm">
@@ -28,14 +28,19 @@
 <div id="app" class="hidden">
  <header class="bg-t-navy text-white sticky top-0 z-40 border-b-4 border-t-yel">
   <div class="max-w-5xl mx-auto px-4 py-3 flex justify-between items-center">
-   <div class="flex items-center gap-3"><div class="w-12 h-12 bg-t-yel rounded-2xl flex items-center justify-center"><span class="text-sm font-black text-t-navy">Taxe</span></div>
+   <div class="flex items-center gap-3"><img src="icon-192.png" class="w-12 h-12 rounded-2xl border-2 border-t-yel" alt="">
    <div><h1 class="font-extrabold text-t-yel leading-none">لوحة الإدارة</h1><span class="text-[10px] text-gray-300">تحديث مباشر</span></div></div>
    <button onclick="sb.auth.signOut().then(()=>location.reload())" class="bg-t-yel text-t-navy text-xs font-bold px-3 py-2 rounded-xl">خروج</button>
   </div>
  </header>
  <main class="max-w-5xl mx-auto px-4 py-5 space-y-5">
   <section class="bg-white p-5 rounded-2xl border">
-   <h2 class="font-bold text-lg mb-3"><i class="fa-solid fa-bell text-t-yeld"></i> الرحلات</h2>
+   <h2 class="font-bold text-lg mb-3"><i class="fa-solid fa-chart-simple text-t-yeld"></i> الإحصائيات</h2>
+   <div id="stats" class="grid grid-cols-2 md:grid-cols-4 gap-2"></div>
+   <p id="statNote" class="text-[10px] text-gray-400 mt-2"></p>
+  </section>
+  <section class="bg-white p-5 rounded-2xl border">
+   <h2 class="font-bold text-lg mb-3"><i class="fa-solid fa-bell text-t-yeld"></i> الرحلات <small id="fltTxt" class="text-xs font-bold text-gray-500"></small></h2>
    <div id="rides" class="space-y-3"></div>
   </section>
   <section class="bg-white p-5 rounded-2xl border">
@@ -76,7 +81,19 @@ async function loadTypes(){const{data,error}=await sb.from('ride_types').select(
  $('types').innerHTML=data.map(t=>`<div class="flex gap-2 items-center text-xs"><b class="w-32 shrink-0">${esc(t.name)}</b><label class="flex-1">أجرة البداية<input type="number" class="in" value="${Number(t.base)}" onchange="price('${t.key}',{base:Number(this.value)})"></label><label class="flex-1">سعر الكم<input type="number" class="in" value="${Number(t.per_km)}" onchange="price('${t.key}',{per_km:Number(this.value)})"></label></div>`).join('')}
 async function price(k,v){const{error}=await sb.from('ride_types').update(v).eq('key',k);toast(error?'❌ '+error.message:'✅ تم الحفظ')}
 
-async function loadRides(){const{data,error}=await sb.from('rides').select('*').order('created_at',{ascending:false}).limit(50);if(error)return toast(error.message);
+const CARDS=[['users','المستخدمون','fa-users',null],['drivers','السائقون','fa-id-card',null],['rides','كل الرحلات','fa-list',[]],['new','جديدة','fa-bell',['جديد']],['accepted','مقبولة / جارية','fa-circle-check',['تم القبول','السائق في الطريق','بدأت الرحلة']],['completed','مكتملة','fa-flag-checkered',['مكتملة']],['cancelled','ملغاة','fa-ban',['ملغاة']],['rejected','مرفوضة','fa-circle-xmark',['مرفوضة']]];
+let FLT=null,STATS=null;
+function setFlt(i){const f=CARDS[i][3];FLT=(f&&f.length)?i:null;drawStats();loadRides()}
+function drawStats(){if(!STATS)return;$('stats').innerHTML=CARDS.map((c,i)=>{const on=FLT===i,clk=c[3]!==null;return `<button ${clk?`onclick="setFlt(${i})"`:'disabled'} class="text-right p-3 rounded-xl border ${on?'bg-t-yel border-t-navy':'bg-t-soft'} ${clk?'':'cursor-default'}"><i class="fa-solid ${c[2]} text-t-navy"></i><div class="text-2xl font-black leading-tight">${Number(STATS[c[0]]||0)}</div><div class="text-[11px] font-bold">${c[1]}${c[0]==='drivers'?` <span class="font-normal text-gray-500">(${Number(STATS.drivers_verified||0)} مفعّل)</span>`:''}</div></button>`}).join('');$('fltTxt').textContent=FLT!==null?'— '+CARDS[FLT][1]+' (اضغط «كل الرحلات» للإلغاء)':''}
+async function loadStats(){
+ const{data,error}=await sb.rpc('admin_stats');
+ if(!error&&data){STATS=data;$('statNote').textContent='';return drawStats()}
+ const cnt=async(t,f)=>{let q=sb.from(t).select('*',{count:'exact',head:true});if(f)q=f(q);const{count}=await q;return count||0};
+ const[rides,nw,acc,comp,canc,rej,dr,drv,cu]=await Promise.all([cnt('rides'),cnt('rides',q=>q.eq('status','جديد')),cnt('rides',q=>q.in('status',['تم القبول','السائق في الطريق','بدأت الرحلة'])),cnt('rides',q=>q.eq('status','مكتملة')),cnt('rides',q=>q.eq('status','ملغاة')),cnt('rides',q=>q.eq('status','مرفوضة')),cnt('drivers'),cnt('drivers',q=>q.eq('verified',true)),cnt('customers')]);
+ STATS={users:cu+dr,drivers:dr,drivers_verified:drv,rides,new:nw,accepted:acc,completed:comp,cancelled:canc,rejected:rej};
+ $('statNote').textContent='عدد المستخدمين تقريبي. شغّل دالة admin_stats في Supabase للحصول على العدد الدقيق.';drawStats();
+}
+async function loadRides(){loadStats();let q=sb.from('rides').select('*').order('created_at',{ascending:false}).limit(50);if(FLT!==null)q=q.in('status',CARDS[FLT][3]);const{data,error}=await q;if(error)return toast(error.message);
  data.forEach(o=>seen[o.id]=o.status);$('rides').innerHTML=data.map(o=>`<div class="fade p-3 bg-t-soft border rounded-xl text-xs space-y-2">
   <div class="flex justify-between"><b class="text-sm">${esc(o.customer_name)} · <a href="tel:${esc(o.customer_phone)}" class="text-blue-700">${esc(o.customer_phone)}</a></b><b>${Number(o.fare)} د.ع</b></div>
   <p><span class="bg-t-yel font-bold px-2 py-0.5 rounded">${esc(TN[o.type]||o.type)}</span> ${o.type==='shared'?`· ${o.seats} مقعد`:''} · ${Number(o.distance_km)} كم ${o.pickup_text?'· '+esc(o.pickup_text):''}</p>
