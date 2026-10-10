@@ -13,8 +13,11 @@
 tailwind.config={theme:{extend:{colors:{t:{navy:'#0B1F4B',dark:'#07142F',yel:'#FFC107',yeld:'#E0A800',soft:'#FFF8E1'}}}}}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+<!-- OpenLayers Map Library -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
+<script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -24,11 +27,12 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
 .card-btn{transition:all .2s ease}.card-btn:active{transform:scale(.96)}
 .sel{border-color:#0B1F4B!important;background-color:#FFC107!important;color:#0B1F4B!important}
 .nav-on{color:#FFC107}.nav-off{color:#9CA3AF}
+.ol-zoom { top: .5em; right: .5em; left: auto; }
 </style>
 </head>
 <body class="text-t-navy">
 
-<!-- ============ شاشة تسجيل الدخول (إجبارية) ============ -->
+<!-- ============ شاشة تسجيل الدخول ============ -->
 <div id="gate" class="fixed inset-0 z-[100] bg-t-navy overflow-y-auto flex flex-col items-center justify-center p-5">
   <div class="w-full max-w-sm">
     <div class="text-center mb-5">
@@ -58,7 +62,7 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
       <input id="sPhone" type="tel" dir="ltr" autocomplete="tel" placeholder="رقم الهاتف  07xxxxxxxxx" class="in">
       <input id="sEmail" type="email" dir="ltr" autocomplete="email" placeholder="البريد الإلكتروني" class="in">
       <input id="sPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة السر (6 أحرف على الأقل)" class="in">
-      <label class="flex gap-2 items-start text-xs text-gray-700"><input id="sAgree" type="checkbox" class="mt-0.5 w-4 h-4"><span>أوافق على <a href="../privacy.html" target="_blank" class="underline font-bold text-blue-700">سياسة الخصوصية</a> وعلى جمع بياناتي (الاسم، الهاتف، البريد، الموقع) لتنفيذ الرحلات.</span></label>
+      <label class="flex gap-2 items-start text-xs text-gray-700"><input id="sAgree" type="checkbox" class="mt-0.5 w-4 h-4"><span>أوافق على <a href="../privacy.html" target="_blank" class="underline font-bold text-blue-700">سياسة الخصوصية</a> وعلى جمع بياناتي لتنفيذ الرحلات.</span></label>
       <button id="sBtn" onclick="playClick();doSignUp()" class="card-btn w-full bg-t-yel text-t-navy font-black py-3 rounded-xl shadow">إنشاء الحساب</button>
       <button onclick="gview('gLogin')" class="w-full text-xs font-bold underline">لدي حساب — تسجيل الدخول</button>
     </div>
@@ -72,7 +76,7 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
       <button onclick="gview('gLogin')" class="w-full text-xs font-bold underline">رجوع</button>
     </div>
 
-    <!-- كلمة سر جديدة (بعد الضغط على رابط البريد) -->
+    <!-- كلمة سر جديدة -->
     <div id="gRecover" class="hidden bg-white rounded-3xl p-5 space-y-3 shadow-2xl border-2 border-t-yel">
       <h2 class="font-black text-lg">كلمة سر جديدة</h2>
       <input id="nPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة السر الجديدة" class="in">
@@ -210,14 +214,12 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
   </div>
 </div>
 
-
-<!-- إفصاح الموقع (Google Play) -->
+<!-- إفصاح الموقع -->
 <div id="locModal" class="fixed inset-0 bg-black/80 z-[150] hidden items-center justify-center p-5">
   <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 border-2 border-t-yel shadow-2xl">
     <div class="text-center"><i class="fa-solid fa-location-crosshairs text-4xl text-t-navy"></i></div>
     <h3 class="font-black text-center text-lg">استخدام الموقع</h3>
-    <p class="text-sm text-gray-700 leading-relaxed">يستخدم التطبيق موقعك الدقيق <b>أثناء استخدامك له فقط</b> لتحديد نقطة الانطلاق على الخريطة، ويُرسل مع طلبك إلى الإدارة والسائق الذي يستلم رحلتك.</p>
-    <p class="text-[11px] text-gray-500 text-center">لا نجمع الموقع والتطبيق مغلق. التفاصيل في <a href="../privacy.html" class="underline">سياسة الخصوصية</a>.</p>
+    <p class="text-sm text-gray-700 leading-relaxed">يستخدم التطبيق موقعك الدقيق <b>أثناء استخدامك له فقط</b> لتحديد نقطة الانطلاق.</p>
     <div class="flex gap-2">
       <button onclick="locNo()" class="flex-1 bg-gray-100 font-bold py-3 rounded-xl text-sm">ليس الآن</button>
       <button onclick="locYes()" class="flex-1 bg-t-yel text-t-navy font-black py-3 rounded-xl text-sm border border-t-navy">موافق</button>
@@ -230,35 +232,31 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
 <script>
 const SUPABASE_URL='https://xvrfcqhnzrkjzmqvxanl.supabase.co';
 const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2cmZjcWhuenJranptcXZ4YW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1MzIzMzIsImV4cCI6MjEwNzEwODMzMn0.iiuuAVfo4jtCFxAIRrO6W9HhGUJjskSIbCAG_Cjpasw';
-const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY,{
+  auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: true }
+});
 const $=i=>document.getElementById(i);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ===== العروض: أضف عروضك هنا ===== */
-const OFFERS=[
-  // {title:'خصم 10% على الرحلات المحلية', desc:'ساري حتى نهاية الشهر', badge:'جديد'}
-];
+const OFFERS=[];
 
-/* ===== الصوت ===== */
 const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
 function beep(type,f1,f2,vol,dur){try{if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain(),n=audioCtx.currentTime;o.type=type;o.frequency.setValueAtTime(f1,n);if(f2)o.frequency.setValueAtTime(f2,n+.1);g.gain.setValueAtTime(vol,n);g.gain.exponentialRampToValueAtTime(.0001,n+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(n+dur)}catch(e){}}
 const playClick=()=>beep('sine',800,0,.05,.05);
 const playNotif=()=>beep('triangle',587.33,880,.15,.3);
 
-let T=[],sel=null,P=null,D=null,mode='p',map=null,user=null,ch=null,curId=null,mapFallback=false;
+let T=[],sel=null,P=null,D=null,mode='p',map=null,mapView=null,user=null,ch=null,curId=null;
 const C0=[34.9311,43.4883];
 const STEPS={'جديد':['بانتظار موافقة الإدارة',20],'تم القبول':['تم قبول طلبك، جاري إرسال سائق 🚕',45],'السائق في الطريق':['السائق في الطريق إليك 🚕',70],'بدأت الرحلة':['الرحلة جارية الآن 🛣️',90],'مكتملة':['وصلت بالسلامة ✅',100],'مرفوضة':['عذراً، الطلب مرفوض ❌',100],'ملغاة':['تم إلغاء الرحلة',100],'لم يحضر':['لم يحضر الزبون',100]};
 const END=['مكتملة','مرفوضة','ملغاة','لم يحضر'];
 
-function toast(t){const e=$('toast');e.textContent=t;e.classList.remove('hidden');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.add('hidden'),3500)}
+function toast(t){const e=$('toast');e.textContent=t;e.classList.remove('hidden');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.add('hidden'),4000)}
 function show(i){$(i).classList.remove('hidden');$(i).classList.add('flex')}
 function hide(i){$(i).classList.add('hidden');$(i).classList.remove('flex')}
 
-/* ===== التبويبات ===== */
 function tab(n){
   ['home','offers','settings'].forEach(x=>{
-    $('pg-'+x).classList.toggle('hidden',x!==n);
-    $('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
+    $('pg-'+x).classList.toggle('hidden',x!==n);$('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
   });
   window.scrollTo(0,0);
 }
@@ -267,11 +265,12 @@ function drawOffers(){
   `<div class="bg-white border rounded-2xl p-8 text-center text-gray-400"><i class="fa-solid fa-gift text-4xl text-t-yel mb-2"></i><p class="text-sm font-bold">لا توجد عروض حالياً</p><p class="text-xs">تابعنا قريباً</p></div>`;
 }
 
-/* ===== أنواع الرحلات ===== */
 async function loadTypes(){
-  const{data,error}=await sb.from('ride_types').select('*').order('sort');
-  if(error)return toast('تعذر تحميل أنواع الرحلات: '+error.message);
-  T=data||[];drawTypes();
+  try{
+    const{data,error}=await sb.from('ride_types').select('*').order('sort');
+    if(error){ toast('خطأ أنواع الرحلات: '+error.message); return; }
+    T=data||[];drawTypes();
+  }catch(e){ toast('استثناء أنواع الرحلات: '+e.message); }
 }
 function drawTypes(){
   $('types').innerHTML=T.map((t,i)=>`<button onclick="playClick();pick('${esc(t.key)}')" class="card-btn ${sel===t.key?'sel':'bg-white'} border-2 border-t-navy/20 rounded-2xl p-4 text-center shadow-sm ${i==4?'col-span-2':''}"><i class="fa-solid ${esc(t.icon)} text-3xl mb-1 text-t-navy"></i><div class="font-extrabold text-sm">${esc(t.name)}</div><div class="text-[10px] opacity-80">يبدأ من ${Number(t.base)} د.ع</div></button>`).join('');
@@ -279,33 +278,54 @@ function drawTypes(){
 function pick(k){
   sel=k;drawTypes();
   const t=T.find(x=>x.key===k);
+  if(!t)return;
   $('tName').textContent=t.name;
   $('seatBox').classList.toggle('hidden',k!=='shared');$('seatBox').classList.toggle('flex',k==='shared');
-  $('form').classList.remove('hidden');est();
-  $('form').scrollIntoView({behavior:'smooth'});
+  $('form').classList.remove('hidden');est();$('form').scrollIntoView({behavior:'smooth'});
 }
 
-/* ===== الأجرة ===== */
 function dist(a,b){const r=x=>x*Math.PI/180,h=Math.sin(r(b[0]-a[0])/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(r(b[1]-a[1])/2)**2;return Math.round(12742*Math.asin(Math.sqrt(h))*1.25*10)/10}
 function est(){
   if(!P||!D||!sel){$('fare').textContent='—';$('km').textContent='';return}
-  const t=T.find(x=>x.key===sel),km=dist(P,D),n=sel==='shared'?Number($('seats').value):1;
+  const t=T.find(x=>x.key===sel);
+  if(!t)return;
+  const km=dist(P,D),n=sel==='shared'?Number($('seats').value):1;
   $('km').textContent='('+km+' كم)';
   $('fare').textContent=Math.round((Number(t.base)+km*Number(t.per_km))*n/250)*250+' د.ع';
 }
 
-/* ===== الخريطة ===== */
 function locOk(){try{return localStorage.getItem('locOK')==='1'}catch(e){return false}}
-function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc()}
+function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc();}
 function locNo(){hide('locModal')}
 
-const RASTER={version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]};
 function openMap(m){
   mode=m;
   $('mapTitle').textContent=m==='p'?'حدد نقطة الانطلاق':'حدد الوجهة';
   show('mapModal');
   setTimeout(()=>{
     const c=(m==='p'?P:D)||P||C0;
-    if(typeof maplibregl==='undefined')return toast('تعذر تحميل الخريطة، تحقق من الإنترنت');
+    if(typeof ol==='undefined')return toast('تعذر تحميل الخريطة');
+
+    const projCoord = ol.proj.fromLonLat([c[1], c[0]]);
+
     if(!map){
-      map=new maplibregl.Map({container:'m
+      mapView = new ol.View({ center: projCoord, zoom: 15 });
+      map = new ol.Map({
+        target: 'map',
+        layers: [new ol.layer.Tile({ source: new ol.source.OSM() })],
+        view: mapView
+      });
+    } else {
+      map.updateSize();
+      mapView.setCenter(projCoord);
+      mapView.setZoom(15);
+    }
+  },250);
+}
+
+function gps(){
+  if(!locOk()){window._afterLoc=gps;show('locModal');return}
+  if(!navigator.geolocation)return toast('تحديد الموقع غير مدعوم');
+  navigator.geolocation.getCurrentPosition(
+    p => {
+      
