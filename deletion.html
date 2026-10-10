@@ -1,0 +1,15 @@
+<!DOCTYPE html><html lang="ar" dir="rtl"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>حذف الحساب - تكسي بيجي</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>body{font-family:Tahoma,Arial,sans-serif;max-width:460px;margin:auto;padding:20px;line-height:1.9;color:#0B1F4B}input,button{width:100%;padding:12px;margin:6px 0;border-radius:10px;border:1px solid #CBD5E1;font-size:15px;box-sizing:border-box}button{background:#0B1F4B;color:#FFC107;font-weight:bold;border:0;cursor:pointer}.red{background:#dc2626;color:#fff}#msg{font-weight:bold;margin-top:10px}</style></head><body>
+<h1>حذف حساب «تكسي بيجي»</h1>
+<p>سجّل الدخول بحسابك ثم أكّد الحذف. سيُحذف حسابك (زبون أو سائق) نهائياً، ويُمسح اسمك ورقم هاتفك من سجلات الرحلات السابقة. لا يمكن التراجع.</p>
+<div id="a"><input id="e" type="email" dir="ltr" placeholder="البريد الإلكتروني"><input id="p" type="password" dir="ltr" placeholder="كلمة السر"><button onclick="login()">تسجيل الدخول</button></div>
+<div id="b" style="display:none"><p id="who"></p><button class="red" onclick="del()">حذف حسابي نهائياً</button></div>
+<p id="msg"></p>
+<p>أو تواصل معنا عبر واتساب: <a href="https://wa.me/9647807750432">07807750432</a> · <a href="privacy.html">سياسة الخصوصية</a></p>
+<script>
+const sb=supabase.createClient('https://xvrfcqhnzrkjzmqvxanl.supabase.co','eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2cmZjcWhuenJranptcXZ4YW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1MzIzMzIsImV4cCI6MjEwNzEwODMzMn0.iiuuAVfo4jtCFxAIRrO6W9HhGUJjskSIbCAG_Cjpasw');
+const m=t=>document.getElementById('msg').textContent=t;
+async function login(){const{data,error}=await sb.auth.signInWithPassword({email:e.value.trim(),password:p.value});if(error)return m('البريد أو كلمة السر غير صحيحة');a.style.display='none';b.style.display='block';who.textContent='الحساب: '+data.user.email;m('')}
+async function del(){if(!confirm('تأكيد الحذف النهائي؟'))return;const{error}=await sb.rpc('delete_my_account');if(error)return m('تعذر الحذف: '+error.message);await sb.auth.signOut();b.style.display='none';m('تم حذف حسابك وبياناتك.')}
+</script></body></html>
