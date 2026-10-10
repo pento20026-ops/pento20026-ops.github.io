@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>تكسي بيجي</title>
+<link rel="manifest" href="manifest.webmanifest">
+<meta name="theme-color" content="#0B1F4B">
+<link rel="icon" href="icon-192.png">
+<link rel="apple-touch-icon" href="icon-192.png">
+<script src="https://cdn.tailwindcss.com"></script>
+<script>
+tailwind.config={theme:{extend:{colors:{t:{navy:'#0B1F4B',dark:'#07142F',yel:'#FFC107',yeld:'#E0A800',soft:'#FFF8E1'}}}}}
+</script>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<style>
+body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5rem + env(safe-area-inset-bottom))}
+.in{padding:.75rem;font-size:.9rem;border:1px solid #CBD5E1;border-radius:.75rem;outline:none;width:100%;background:#fff}
+.in:focus{border-color:#0B1F4B;box-shadow:0 0 0 2px #FFC107}
+.card-btn{transition:all .2s ease}.card-btn:active{transform:scale(.96)}
+.sel{border-color:#0B1F4B!important;background-color:#FFC107!important;color:#0B1F4B!important}
+.nav-on{color:#FFC107}.nav-off{color:#9CA3AF}
+</style>
+</head>
+<body class="text-t-navy">
+
+<!-- ============ شاشة تسجيل الدخول (إجبارية) ============ -->
+<div id="gate" class="fixed inset-0 z-[100] bg-t-navy overflow-y-auto flex flex-col items-center justify-center p-5">
+  <div class="w-full max-w-sm">
+    <div class="text-center mb-5">
+      <img src="icon-192.png" class="w-24 h-24 mx-auto rounded-3xl border-4 border-t-yel shadow-xl" alt="">
+      <h1 class="text-2xl font-black text-t-yel mt-3">تكسي بيجي</h1>
+      <p class="text-xs text-gray-300">رحلات آمنة وسريعة</p>
+    </div>
+
+    <div id="gLoad" class="text-center text-t-yel py-6"><i class="fa-solid fa-spinner fa-spin text-2xl"></i></div>
+
+    <!-- دخول -->
+    <div id="gLogin" class="hidden bg-white rounded-3xl p-5 space-y-3 shadow-2xl border-2 border-t-yel">
+      <h2 class="font-black text-lg">تسجيل الدخول</h2>
+      <input id="lEmail" type="email" dir="ltr" autocomplete="email" placeholder="البريد الإلكتروني" class="in">
+      <input id="lPass" type="password" dir="ltr" autocomplete="current-password" placeholder="كلمة السر" class="in">
+      <button id="lBtn" onclick="playClick();doLogin()" class="card-btn w-full bg-t-navy text-t-yel font-black py-3 rounded-xl shadow">دخول</button>
+      <div class="flex justify-between text-xs font-bold pt-1">
+        <button onclick="gview('gSignup')" class="text-t-navy underline">إنشاء حساب جديد</button>
+        <button onclick="gview('gForgot')" class="text-blue-700 underline">نسيت كلمة السر؟</button>
+      </div>
+    </div>
+
+    <!-- حساب جديد -->
+    <div id="gSignup" class="hidden bg-white rounded-3xl p-5 space-y-3 shadow-2xl border-2 border-t-yel">
+      <h2 class="font-black text-lg">إنشاء حساب جديد</h2>
+      <input id="sName" autocomplete="name" placeholder="الاسم الكامل" class="in">
+      <input id="sPhone" type="tel" dir="ltr" autocomplete="tel" placeholder="رقم الهاتف  07xxxxxxxxx" class="in">
+      <input id="sEmail" type="email" dir="ltr" autocomplete="email" placeholder="البريد الإلكتروني" class="in">
+      <input id="sPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة السر (6 أحرف على الأقل)" class="in">
+      <label class="flex gap-2 items-start text-xs text-gray-700"><input id="sAgree" type="checkbox" class="mt-0.5 w-4 h-4"><span>أوافق على <a href="../privacy.html" target="_blank" class="underline font-bold text-blue-700">سياسة الخصوصية</a> وعلى جمع بياناتي (الاسم، الهاتف، البريد، الموقع) لتنفيذ الرحلات.</span></label>
+      <button id="sBtn" onclick="playClick();doSignUp()" class="card-btn w-full bg-t-yel text-t-navy font-black py-3 rounded-xl shadow">إنشاء الحساب</button>
+      <button onclick="gview('gLogin')" class="w-full text-xs font-bold underline">لدي حساب — تسجيل الدخول</button>
+    </div>
+
+    <!-- نسيت كلمة السر -->
+    <div id="gForgot" class="hidden bg-white rounded-3xl p-5 space-y-3 shadow-2xl border-2 border-t-yel">
+      <h2 class="font-black text-lg">استرداد كلمة السر</h2>
+      <p class="text-xs text-gray-600">سنرسل رابط إعادة التعيين إلى بريدك.</p>
+      <input id="fEmail" type="email" dir="ltr" placeholder="البريد الإلكتروني" class="in">
+      <button onclick="playClick();sendReset()" class="card-btn w-full bg-t-navy text-t-yel font-black py-3 rounded-xl shadow">إرسال الرابط</button>
+      <button onclick="gview('gLogin')" class="w-full text-xs font-bold underline">رجوع</button>
+    </div>
+
+    <!-- كلمة سر جديدة (بعد الضغط على رابط البريد) -->
+    <div id="gRecover" class="hidden bg-white rounded-3xl p-5 space-y-3 shadow-2xl border-2 border-t-yel">
+      <h2 class="font-black text-lg">كلمة سر جديدة</h2>
+      <input id="nPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة السر الجديدة" class="in">
+      <button onclick="playClick();setNewPass()" class="card-btn w-full bg-t-navy text-t-yel font-black py-3 rounded-xl shadow">حفظ</button>
+    </div>
+  </div>
+</div>
+
+<!-- ============ الهيدر ============ -->
+<header class="bg-t-navy text-white sticky top-0 z-40 shadow-xl border-b-4 border-t-yel" style="padding-top:env(safe-area-inset-top)">
+  <div class="max-w-xl mx-auto px-4 py-2.5 flex items-center gap-3">
+    <img src="icon-192.png" class="w-11 h-11 rounded-xl border-2 border-t-yel" alt="">
+    <div>
+      <h1 class="text-lg font-black text-t-yel leading-none">تكسي بيجي</h1>
+      <span class="text-[10px] text-gray-300">رحلات آمنة وسريعة</span>
+    </div>
+  </div>
+</header>
+
+<main class="max-w-xl mx-auto px-4 mt-4">
+
+<!-- ============ الرئيسية ============ -->
+<div id="pg-home" class="space-y-4">
+  <div class="bg-gradient-to-l from-t-navy via-t-dark to-t-navy text-white p-4 rounded-2xl shadow-md flex justify-between items-center border border-t-yel/30">
+    <div>
+      <h2 class="text-lg font-black text-t-yel">اختر نوع رحلتك</h2>
+      <p class="text-xs text-gray-300">محلي، أقضية، محافظات وخاص</p>
+    </div>
+    <i class="fa-solid fa-taxi text-3xl text-t-yel"></i>
+  </div>
+
+  <div id="types" class="grid grid-cols-2 gap-3"></div>
+
+  <section id="form" class="bg-white p-4 rounded-2xl border shadow-sm space-y-3 hidden">
+    <h3 class="font-extrabold"><i class="fa-solid fa-route text-t-yeld"></i> تفاصيل الرحلة: <span id="tName"></span></h3>
+    <input id="cName" placeholder="الاسم الكامل" class="in">
+    <input id="cPhone" type="tel" placeholder="رقم الهاتف للتواصل" class="in" dir="ltr">
+
+    <button onclick="playClick();openMap('p')" class="w-full bg-t-soft border border-yellow-200 p-3 rounded-xl text-sm font-bold flex justify-between items-center shadow-sm">
+      <span id="pTxt"><i class="fa-solid fa-circle-dot text-green-600"></i> تحديد نقطة الانطلاق</span>
+      <i class="fa-solid fa-chevron-left text-xs"></i>
+    </button>
+    <button onclick="playClick();openMap('d')" class="w-full bg-t-soft border border-yellow-200 p-3 rounded-xl text-sm font-bold flex justify-between items-center shadow-sm">
+      <span id="dTxt"><i class="fa-solid fa-location-dot text-red-500"></i> تحديد الوجهة</span>
+      <i class="fa-solid fa-chevron-left text-xs"></i>
+    </button>
+
+    <input id="note" placeholder="ملاحظات (مثال: قرب الجامع / معلم معروف)" class="in">
+
+    <div id="seatBox" class="hidden items-center justify-between text-sm font-bold bg-gray-50 p-3 rounded-xl border">
+      <span>عدد المقاعد المطلوب:</span>
+      <select id="seats" onchange="est()" class="in !w-24 !p-1.5"><option>1</option><option>2</option><option>3</option><option>4</option></select>
+    </div>
+
+    <div class="flex justify-between items-center font-black bg-t-soft border border-t-yel p-3.5 rounded-xl">
+      <span>الأجرة التقديرية: <small id="km" class="font-bold text-gray-500"></small></span>
+      <span id="fare" class="text-lg font-black">—</span>
+    </div>
+
+    <button id="rideBtn" onclick="playClick();request()" class="card-btn w-full bg-t-navy text-t-yel font-black py-3.5 rounded-xl shadow-lg border border-t-yel text-base">اطلب التكسي الآن</button>
+  </section>
+</div>
+
+<!-- ============ العروض ============ -->
+<div id="pg-offers" class="hidden space-y-3">
+  <h2 class="font-black text-lg"><i class="fa-solid fa-tags text-t-yeld"></i> العروض</h2>
+  <div id="offersList" class="space-y-3"></div>
+</div>
+
+<!-- ============ الإعدادات ============ -->
+<div id="pg-settings" class="hidden space-y-3">
+  <h2 class="font-black text-lg"><i class="fa-solid fa-gear text-t-yeld"></i> الإعدادات</h2>
+
+  <a href="https://wa.me/9647807750432" target="_blank" rel="noopener" onclick="playClick()" class="card-btn bg-white border rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+    <span class="w-11 h-11 rounded-xl bg-green-600 text-white flex items-center justify-center text-xl"><i class="fa-brands fa-whatsapp"></i></span>
+    <span class="flex-1"><b class="block">الدعم الفني</b><small class="text-gray-500">تواصل معنا عبر واتساب</small></span>
+    <i class="fa-solid fa-chevron-left text-xs text-gray-400"></i>
+  </a>
+
+  <a href="tel:+9647807750432" onclick="playClick()" class="card-btn bg-white border rounded-2xl p-4 flex items-center gap-3 shadow-sm">
+    <span class="w-11 h-11 rounded-xl bg-t-navy text-t-yel flex items-center justify-center text-lg"><i class="fa-solid fa-phone"></i></span>
+    <span class="flex-1"><b class="block">رقم الهاتف</b><small dir="ltr" class="text-gray-500">0780 775 0432</small></span>
+    <i class="fa-solid fa-chevron-left text-xs text-gray-400"></i>
+  </a>
+
+  <div class="pt-4 text-center space-y-1">
+    <p id="uMail" dir="ltr" class="text-[11px] text-gray-400"></p>
+    <p class="text-xs text-gray-400">
+      <a onclick="playClick();sb.auth.signOut()" class="underline cursor-pointer">تسجيل الخروج</a> ·
+      <a href="../privacy.html" class="underline">الخصوصية</a> ·
+      <a onclick="delAcc()" class="underline cursor-pointer">حذف حسابي</a>
+    </p>
+  </div>
+</div>
+
+</main>
+
+<!-- ============ تتبع الرحلة ============ -->
+<div id="tracker" class="fixed left-4 right-4 max-w-md mx-auto bg-t-navy text-white p-4 rounded-2xl shadow-2xl border-2 border-t-yel hidden z-40" style="bottom:calc(5.5rem + env(safe-area-inset-bottom))">
+  <div class="flex justify-between items-center">
+    <span class="text-[10px] text-t-yel font-bold">متابعة الرحلة مباشرة</span>
+    <span id="trTxt" class="text-xs font-extrabold"></span>
+  </div>
+  <div id="drv" class="hidden mt-2 text-xs bg-t-dark rounded-xl p-2.5 border border-t-yel/30"></div>
+  <div class="h-2.5 bg-t-dark rounded-full mt-3 overflow-hidden border border-white/10">
+    <div id="trBar" class="h-full bg-t-yel transition-all duration-700" style="width:10%"></div>
+  </div>
+  <button id="cancelBtn" onclick="playClick();cancelRide()" class="hidden mt-3 w-full bg-red-600 text-white text-xs font-bold py-2 rounded-lg">إلغاء الرحلة</button>
+</div>
+
+<!-- ============ الشريط السفلي ============ -->
+<nav class="fixed bottom-0 inset-x-0 z-50 bg-t-navy border-t-4 border-t-yel" style="padding-bottom:env(safe-area-inset-bottom)">
+  <div class="max-w-xl mx-auto grid grid-cols-3">
+    <button id="nv-home" onclick="playClick();tab('home')" class="py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold"><i class="fa-solid fa-taxi text-xl"></i>الرئيسية</button>
+    <button id="nv-offers" onclick="playClick();tab('offers')" class="py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold"><i class="fa-solid fa-tags text-xl"></i>العروض</button>
+    <button id="nv-settings" onclick="playClick();tab('settings')" class="py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold"><i class="fa-solid fa-gear text-xl"></i>الإعدادات</button>
+  </div>
+</nav>
+
+<!-- ============ الخريطة ============ -->
+<div id="mapModal" class="fixed inset-0 bg-black/70 z-[60] hidden items-center justify-center p-4">
+  <div class="bg-white w-full max-w-lg rounded-3xl overflow-hidden shadow-2xl border-2 border-t-yel">
+    <div class="p-3.5 bg-t-navy text-t-yel flex justify-between items-center text-xs font-bold">
+      <span id="mapTitle">حرّك الخريطة لتحديد الموقع</span>
+      <button onclick="playClick();hide('mapModal')"><i class="fa-solid fa-xmark text-lg text-white"></i></button>
+    </div>
+    <div class="relative" style="height:60vh;max-height:26rem">
+      <div id="map" class="h-full w-full"></div>
+      <svg class="absolute pointer-events-none z-10" style="left:50%;top:50%;transform:translate(-50%,-100%);filter:drop-shadow(0 3px 3px rgba(0,0,0,.4))" width="40" height="52" viewBox="0 0 24 32"><path d="M12 0C5.4 0 0 5.4 0 12c0 9 12 20 12 20s12-11 12-20C24 5.4 18.6 0 12 0z" fill="#DC2626"/><circle cx="12" cy="12" r="5" fill="#fff"/></svg>
+    </div>
+    <div class="p-3.5 bg-gray-50 flex gap-2">
+      <button onclick="playClick();gps()" class="flex-1 bg-white border border-t-navy text-xs font-bold py-3 rounded-xl shadow-sm"><i class="fa-solid fa-location-crosshairs"></i> موقعي الحالي</button>
+      <button onclick="playClick();confirmLoc()" class="flex-1 bg-t-yel font-black text-xs py-3 rounded-xl shadow-md border border-t-navy">تأكيد الموقع</button>
+    </div>
+  </div>
+</div>
+
+
+<!-- إفصاح الموقع (Google Play) -->
+<div id="locModal" class="fixed inset-0 bg-black/80 z-[150] hidden items-center justify-center p-5">
+  <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 border-2 border-t-yel shadow-2xl">
+    <div class="text-center"><i class="fa-solid fa-location-crosshairs text-4xl text-t-navy"></i></div>
+    <h3 class="font-black text-center text-lg">استخدام الموقع</h3>
+    <p class="text-sm text-gray-700 leading-relaxed">يستخدم التطبيق موقعك الدقيق <b>أثناء استخدامك له فقط</b> لتحديد نقطة الانطلاق على الخريطة، ويُرسل مع طلبك إلى الإدارة والسائق الذي يستلم رحلتك.</p>
+    <p class="text-[11px] text-gray-500 text-center">لا نجمع الموقع والتطبيق مغلق. التفاصيل في <a href="../privacy.html" class="underline">سياسة الخصوصية</a>.</p>
+    <div class="flex gap-2">
+      <button onclick="locNo()" class="flex-1 bg-gray-100 font-bold py-3 rounded-xl text-sm">ليس الآن</button>
+      <button onclick="locYes()" class="flex-1 bg-t-yel text-t-navy font-black py-3 rounded-xl text-sm border border-t-navy">موافق</button>
+    </div>
+  </div>
+</div>
+
+<div id="toast" class="fixed top-5 left-1/2 -translate-x-1/2 bg-t-navy text-white text-xs font-bold px-4 py-3 rounded-xl shadow-2xl z-[200] hidden border border-t-yel max-w-[90vw] text-center"></div>
+
+<script>
+if(typeof supabase==='undefined'){document.getElementById('gLoad').innerHTML='<p class="text-t-yel text-sm">تعذر تحميل الخدمة، تحقق من الإنترنت وأعد فتح التطبيق</p>';throw new Error('no supabase')}
+const SUPABASE_URL='https://xvrfcqhnzrkjzmqvxanl.supabase.co';
+const SUPABASE_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh2cmZjcWhuenJranptcXZ4YW5sIiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTE1MzIzMzIsImV4cCI6MjEwNzEwODMzMn0.iiuuAVfo4jtCFxAIRrO6W9HhGUJjskSIbCAG_Cjpasw';
+const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
+const $=i=>document.getElementById(i);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+/* ===== العروض: أضف عروضك هنا ===== */
+const OFFERS=[
+  // {title:'خصم 10% على الرحلات المحلية', desc:'ساري حتى نهاية الشهر', badge:'جديد'}
+];
+
+/* ===== الصوت ===== */
+const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
+function beep(type,f1,f2,vol,dur){try{if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain(),n=audioCtx.currentTime;o.type=type;o.frequency.setValueAtTime(f1,n);if(f2)o.frequency.setValueAtTime(f2,n+.1);g.gain.setValueAtTime(vol,n);g.gain.exponentialRampToValueAtTime(.0001,n+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(n+dur)}catch(e){}}
+const playClick=()=>beep('sine',800,0,.05,.05);
+const playNotif=()=>beep('triangle',587.33,880,.15,.3);
+
+let T=[],sel=null,P=null,D=null,mode='p',map=null,user=null,ch=null,curId=null,mapFallback=false;
+const C0=[34.9311,43.4883];
+const STEPS={'جديد':['بانتظار موافقة الإدارة',20],'تم القبول':['تم قبول طلبك، جاري إرسال سائق 🚕',45],'السائق في الطريق':['السائق في الطريق إليك 🚕',70],'بدأت الرحلة':['الرحلة جارية الآن 🛣️',90],'مكتملة':['وصلت بالسلامة ✅',100],'مرفوضة':['عذراً، الطلب مرفوض ❌',100],'ملغاة':['تم إلغاء الرحلة',100],'لم يحضر':['لم يحضر الزبون',100]};
+const END=['مكتملة','مرفوضة','ملغاة','لم يحضر'];
+
+function toast(t){const e=$('toast');e.textContent=t;e.classList.remove('hidden');clearTimeout(e._t);e._t=setTimeout(()=>e.classList.add('hidden'),3500)}
+function show(i){$(i).classList.remove('hidden');$(i).classList.add('flex')}
+function hide(i){$(i).classList.add('hidden');$(i).classList.remove('flex')}
+
+/* ===== التبويبات ===== */
+function tab(n){
+  ['home','offers','settings'].forEach(x=>{
+    $('pg-'+x).classList.toggle('hidden',x!==n);
+    $('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
+  });
+  window.scrollTo(0,0);
+}
+function drawOffers(){
+  $('offersList').innerHTML=OFFERS.length?OFFERS.map(o=>`<div class="bg-gradient-to-l from-t-navy to-t-dark text-white rounded-2xl p-4 border border-t-yel/40 shadow">${o.badge?`<span class="bg-t-yel text-t-navy text-[10px] font-black px-2 py-0.5 rounded-md">${esc(o.badge)}</span>`:''}<h3 class="font-black text-t-yel mt-1">${esc(o.title)}</h3><p class="text-xs text-gray-300 mt-1">${esc(o.desc||'')}</p></div>`).join(''):
+  `<div class="bg-white border rounded-2xl p-8 text-center text-gray-400"><i class="fa-solid fa-gift text-4xl text-t-yel mb-2"></i><p class="text-sm font-bold">لا توجد عروض حالياً</p><p class="text-xs">تابعنا قريباً</p></div>`;
+}
+
+/* ===== أنواع الرحلات ===== */
+async function loadTypes(){
+  const{data,error}=await sb.from('ride_types').select('*').order('sort');
+  if(error)return toast('تعذر تحميل أنواع الرحلات: '+error.message);
+  T=data||[];drawTypes();
+}
+function drawTypes(){
+  $('types').innerHTML=T.map((t,i)=>`<button onclick="playClick();pick('${esc(t.key)}')" class="card-btn ${sel===t.key?'sel':'bg-white'} border-2 border-t-navy/20 rounded-2xl p-4 text-center shadow-sm ${i==4?'col-span-2':''}"><i class="fa-solid ${esc(t.icon)} text-3xl mb-1 text-t-navy"></i><div class="font-extrabold text-sm">${esc(t.name)}</div><div class="text-[10px] opacity-80">يبدأ من ${Number(t.base)} د.ع</div></button>`).join('');
+}
+function pick(k){
+  sel=k;drawTypes();
+  const t=T.find(x=>x.key===k);
+  $('tName').textContent=t.name;
+  $('seatBox').classList.toggle('hidden',k!=='shared');$('seatBox').classList.toggle('flex',k==='shared');
+  $('form').classList.remove('hidden');est();
+  $('form').scrollIntoView({behavior:'smooth'});
+}
+
+/* ===== الأجرة ===== */
+function dist(a,b){const r=x=>x*Math.PI/180,h=Math.sin(r(b[0]-a[0])/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(r(b[1]-a[1])/2)**2;return Math.round(12742*Math.asin(Math.sqrt(h))*1.25*10)/10}
+function est(){
+  if(!P||!D||!sel){$('fare').textContent='—';$('km').textContent='';return}
+  const t=T.find(x=>x.key===sel),km=dist(P,D),n=sel==='shared'?Number($('seats').value):1;
+  $('km').textContent='('+km+' كم)';
+  $('fare').textContent=Math.round((Number(t.base)+km*Number(t.per_km))*n/250)*250+' د.ع';
+}
+
+/* ===== الخريطة ===== */
+function locOk(){try{return localStorage.getItem('locOK')==='1'}catch(e){return false}}
+function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc()}
+function locNo(){hide('locModal')}
+
+const RASTER={version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]};
+try{maplibregl.setRTLTextPlugin('https://unpkg.com/@mapbox/mapbox-gl-rtl-text@0.3.0/dist/mapbox-gl-rtl-text.js',true).catch(()=>{})}catch(e){}
+function arabize(){try{map.getStyle().layers.forEach(l=>{if(l.type==='symbol'&&l.layout&&l.layout['text-field']&&!/housenumber|shield/.test(l.id))map.setLayoutProperty(l.id,'text-field',['coalesce',['get','name:ar'],['get','name'],['get','name_en']])})}catch(e){}}
+function notify(t,b){try{if(navigator.vibrate)navigator.vibrate([300,100,300]);if('Notification' in window&&Notification.permission==='granted'&&document.hidden)navigator.serviceWorker.ready.then(r=>r.showNotification(t,{body:b,icon:'icon-192.png',vibrate:[300,100,300],tag:'taxi'}))}catch(e){}}
+async function askNotif(){try{if('Notification' in window&&Notification.permission==='default')await Notification.requestPermission()}catch(e){}}
+function openMap(m){
+  mode=m;
+  $('mapTitle').textContent=m==='p'?'حدد نقطة الانطلاق':'حدد الوجهة';
+  show('mapModal');
+  setTimeout(()=>{
+    const c=(m==='p'?P:D)||P||C0;
+    if(typeof maplibregl==='undefined')return toast('تعذر تحميل الخريطة، تحقق من الإنترنت');
+    if(!map){
+      map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/bright',center:[c[1],c[0]],zoom:14});
+      map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
+      // إذا فشل مزوّد الخرائط الأساسي نبدّل تلقائياً إلى OpenStreetMap
+      map.on('error',()=>{if(!mapFallback&&!map.isStyleLoaded()){mapFallback=true;map.setStyle(RASTER)}});
+    }else{map.resize();map.jumpTo({center:[c[1],c[0]],zoom:14})}
+    if(m==='p'&&!P)gps();
+  },250);
+}
+function gps(){
+  if(!locOk()){window._afterLoc=gps;show('locModal');return}
+  if(!navigator.geolocation)return toast('تحديد الموقع غير مدعوم');
+  navigator.geolocation.getCurrentPosition(p=>{if(map)map.flyTo({center:[p.coords.longitude,p.coords.latitude],zoom:16})},()=>toast('يرجى تفعيل إذن الموقع (GPS)'),{enableHighAccuracy:true,timeout:15000});
+}
+function confirmLoc(){
+  if(!map)return;
+  const c=map.getCenter(),a=[c.lat,c.lng];
+  if(mode==='p'){P=a;$('pTxt').innerHTML='<i class="fa-solid fa-circle-check text-green-600"></i> تم تحديد الانطلاق'}
+  else{D=a;$('dTxt').innerHTML='<i class="fa-solid fa-circle-check text-green-600"></i> تم تحديد الوجهة'}
+  hide('mapModal');est();
+}
+
+/* ===== تسجيل الدخول ===== */
+function gview(v){['gLoad','gLogin','gSignup','gForgot','gRecover'].forEach(x=>$(x).classList.toggle('hidden',x!==v))}
+function arErr(m){
+  m=String(m||'');
+  if(/Invalid login/i.test(m))return 'البريد الإلكتروني أو كلمة السر غير صحيحة';
+  if(/not confirmed/i.test(m))return 'يرجى تأكيد بريدك من الرسالة المرسلة إليك أولاً';
+  if(/already registered|already been registered/i.test(m))return 'هذا البريد مسجّل مسبقاً، سجّل الدخول';
+  if(/at least 6|weak/i.test(m))return 'كلمة السر ضعيفة (6 أحرف على الأقل)';
+  if(/valid email|invalid format/i.test(m))return 'البريد الإلكتروني غير صالح';
+  if(/rate limit|too many/i.test(m))return 'محاولات كثيرة، انتظر قليلاً ثم أعد المحاولة';
+  if(/fetch|network/i.test(m))return 'لا يوجد اتصال بالإنترنت';
+  return m;
+}
+async function doLogin(){
+  const email=$('lEmail').value.trim(),password=$('lPass').value;
+  if(!email||!password)return toast('أدخل البريد وكلمة السر');
+  const b=$('lBtn');b.disabled=true;
+  const{error}=await sb.auth.signInWithPassword({email,password});
+  b.disabled=false;
+  if(error)toast(arErr(error.message));
+}
+async function doSignUp(){
+  const name=$('sName').value.trim(),phone=$('sPhone').value.trim(),email=$('sEmail').value.trim(),password=$('sPass').value;
+  if(!name||!phone||!email||!password)return toast('أكمل جميع الحقول');
+  if(!$('sAgree').checked)return toast('يجب الموافقة على سياسة الخصوصية');
+  if(!/^[0-9+\s]{9,15}$/.test(phone))return toast('رقم الهاتف غير صحيح');
+  if(password.length<6)return toast('كلمة السر 6 أحرف على الأقل');
+  const b=$('sBtn');b.disabled=true;
+  const{data,error}=await sb.auth.signUp({email,password,options:{data:{name,phone}}});
+  b.disabled=false;
+  if(error)return toast(arErr(error.message));
+  if(!data.session){ // تأكيد البريد مفعّل في Supabase
+    toast('تم إنشاء الحساب — افتح بريدك واضغط رابط التأكيد ثم سجّل الدخول');
+    $('lEmail').value=email;gview('gLogin');
+  }
+}
+async function sendReset(){
+  const email=$('fEmail').value.trim();
+  if(!email)return toast('أدخل بريدك الإلكتروني');
+  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href.split('#')[0].split('?')[0]});
+  if(error)return toast(arErr(error.message));
+  toast('تم إرسال رابط الاسترداد إلى بريدك');gview('gLogin');
+}
+async function setNewPass(){
+  const p=$('nPass').value;
+  if(p.length<6)return toast('كلمة السر 6 أحرف على الأقل');
+  const{error}=await sb.auth.updateUser({password:p});
+  if(error)return toast(arErr(error.message));
+  toast('تم تغيير كلمة السر');applyUser((await sb.auth.getSession()).data.session?.user||null);
+}
+async function delAcc(){
+  if(!user)return;
+  if(!confirm('تأكيد حذف الحساب نهائياً؟'))return;
+  const{error}=await sb.rpc('delete_my_account');
+  if(error)return toast(error.message);
+  await sb.auth.signOut();toast('تم حذف الحساب');
+}
+
+function applyUser(u){
+  user=u;
+  if(!u){
+    $('gate').classList.remove('hidden');gview('gLogin');
+    $('tracker').classList.add('hidden');
+    if(ch){sb.removeChannel(ch);ch=null}
+    return;
+  }
+  $('gate').classList.add('hidden');
+  $('uMail').textContent=u.email||'';
+  const md=u.user_metadata||{};
+  if(!$('cName').value)$('cName').value=md.name||'';
+  if(!$('cPhone').value)$('cPhone').value=md.phone||'';
+  loadTypes();loadActive();
+}
+sb.auth.onAuthStateChange((ev,s)=>{
+  if(ev==='PASSWORD_RECOVERY'){$('gate').classList.remove('hidden');gview('gRecover');return}
+  if(ev==='INITIAL_SESSION')return;
+  applyUser(s?.user||null);
+});
+
+/* ===== طلب رحلة ===== */
+async function request(){
+  if(!user)return $('gate').classList.remove('hidden');
+  askNotif();
+  const name=$('cName').value.trim(),phone=$('cPhone').value.trim(),note=$('note').value.trim()||null;
+  if(!sel)return toast('اختر نوع الرحلة');
+  if(!name||!phone)return toast('أدخل الاسم ورقم الهاتف');
+  if(!P||!D)return toast('حدد الانطلاق والوجهة');
+  const b=$('rideBtn');b.disabled=true;b.textContent='جاري إرسال الطلب...';
+  const{data,error}=await sb.from('rides').insert([{user_id:user.id,customer_name:name,customer_phone:phone,type:sel,seats:Number($('seats').value),pickup_lat:P[0],pickup_lng:P[1],pickup_text:note,drop_lat:D[0],drop_lng:D[1],drop_text:note}]).select().single();
+  b.disabled=false;b.textContent='اطلب التكسي الآن';
+  if(error)return toast('فشل الطلب: '+error.message);
+  playNotif();toast('✅ تم إرسال الطلب بنجاح');track(data);
+}
+function showStatus(o){
+  curId=o.id;
+  $('cancelBtn').classList.toggle('hidden',o.status!=='جديد');
+  const s=STEPS[o.status]||[o.status,50];
+  $('trTxt').textContent=s[0];$('trBar').style.width=s[1]+'%';
+  const d=$('drv');
+  if(o.driver_name&&!END.includes(o.status)){
+    d.classList.remove('hidden');
+    d.innerHTML=`<i class="fa-solid fa-id-card text-t-yel"></i> السائق: <b>${esc(o.driver_name)}</b> · <a href="tel:${esc(o.driver_phone)}" class="text-t-yel underline font-bold">${esc(o.driver_phone||'')}</a>`;
+  }else d.classList.add('hidden');
+  if(END.includes(o.status))setTimeout(()=>{if(curId===o.id)$('tracker').classList.add('hidden')},8000);
+}
+function track(o){
+  $('tracker').classList.remove('hidden');showStatus(o);
+  if(ch)sb.removeChannel(ch);
+  ch=sb.channel('r'+o.id).on('postgres_changes',{event:'UPDATE',schema:'public',table:'rides',filter:`id=eq.${o.id}`},p=>{
+    playNotif();showStatus(p.new);notify('تكسي بيجي',(STEPS[p.new.status]||[p.new.status])[0]);
+    if(p.new.status==='مكتملة')toast('🎉 وصلت بالسلامة!');
+    if(p.new.status==='مرفوضة')toast('تم رفض الطلب من الإدارة');
+  }).subscribe();
+}
+async function loadActive(){
+  const{data}=await sb.from('rides').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1);
+  if(data&&data[0]&&!END.includes(data[0].status))track(data[0]);
+}
+async function cancelRide(){
+  if(!confirm('تأكيد إلغاء الرحلة؟'))return;
+  const{data,error}=await sb.from('rides').update({status:'ملغاة'}).eq('id',curId).select();
+  if(error||!data.length)return toast('لا يمكن الإلغاء الآن');
+  showStatus(data[0]);toast('تم إلغاء الرحلة');
+}
+
+/* ===== تشغيل ===== */
+tab('home');drawOffers();
+sb.auth.getSession().then(({data})=>{
+  // لو الرابط رابط استرداد، onAuthStateChange يعرض شاشة كلمة السر الجديدة
+  if(!/type=recovery/.test(location.hash))applyUser(data.session?.user||null);
+}).catch(()=>{applyUser(null)});
+</script>
+<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js')</script>
+</body>
+</html>
