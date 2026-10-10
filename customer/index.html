@@ -14,7 +14,7 @@ tailwind.config={theme:{extend:{colors:{t:{navy:'#0B1F4B',dark:'#07142F',yel:'#F
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 
-<!-- OpenLayers Map Library (تضمن دعم اللغة العربية بالكامل وبدون حروف مقلوبة) -->
+<!-- OpenLayers Map Library (تضمن دعم اللغة العربية بالكامل ودعم GPS ممتازا) -->
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
 <script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
 
@@ -76,7 +76,7 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
       <button onclick="gview('gLogin')" class="w-full text-xs font-bold underline">رجوع</button>
     </div>
 
-    <!-- كلمة سر جديدة (بعد الضغط على رابط البريد) -->
+    <!-- كلمة سر جديدة -->
     <div id="gRecover" class="hidden bg-white rounded-3xl p-5 space-y-3 shadow-2xl border-2 border-t-yel">
       <h2 class="font-black text-lg">كلمة سر جديدة</h2>
       <input id="nPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة السر الجديدة" class="in">
@@ -237,17 +237,15 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=i=>document.getElementById(i);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ===== العروض ===== */
 const OFFERS=[];
 
-/* ===== الصوت ===== */
 const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
 function beep(type,f1,f2,vol,dur){try{if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain(),n=audioCtx.currentTime;o.type=type;o.frequency.setValueAtTime(f1,n);if(f2)o.frequency.setValueAtTime(f2,n+.1);g.gain.setValueAtTime(vol,n);g.gain.exponentialRampToValueAtTime(.0001,n+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(n+dur)}catch(e){}}
 const playClick=()=>beep('sine',800,0,.05,.05);
 const playNotif=()=>beep('triangle',587.33,880,.15,.3);
 
 let T=[],sel=null,P=null,D=null,mode='p',map=null,mapView=null,user=null,ch=null,curId=null;
-const C0=[34.9311,43.4883]; // [Lat, Lng]
+const C0=[34.9311,43.4883];
 const STEPS={'جديد':['بانتظار موافقة الإدارة',20],'تم القبول':['تم قبول طلبك، جاري إرسال سائق 🚕',45],'السائق في الطريق':['السائق في الطريق إليك 🚕',70],'بدأت الرحلة':['الرحلة جارية الآن 🛣️',90],'مكتملة':['وصلت بالسلامة ✅',100],'مرفوضة':['عذراً، الطلب مرفوض ❌',100],'ملغاة':['تم إلغاء الرحلة',100],'لم يحضر':['لم يحضر الزبون',100]};
 const END=['مكتملة','مرفوضة','ملغاة','لم يحضر'];
 
@@ -255,7 +253,6 @@ function toast(t){const e=$('toast');e.textContent=t;e.classList.remove('hidden'
 function show(i){$(i).classList.remove('hidden');$(i).classList.add('flex')}
 function hide(i){$(i).classList.add('hidden');$(i).classList.remove('flex')}
 
-/* ===== التبويبات ===== */
 function tab(n){
   ['home','offers','settings'].forEach(x=>{
     $('pg-'+x).classList.toggle('hidden',x!==n);$('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
@@ -267,7 +264,6 @@ function drawOffers(){
   `<div class="bg-white border rounded-2xl p-8 text-center text-gray-400"><i class="fa-solid fa-gift text-4xl text-t-yel mb-2"></i><p class="text-sm font-bold">لا توجد عروض حالياً</p><p class="text-xs">تابعنا قريباً</p></div>`;
 }
 
-/* ===== أنواع الرحلات ===== */
 async function loadTypes(){
   const{data,error}=await sb.from('ride_types').select('*').order('sort');
   if(error)return toast('تعذر تحميل أنواع الرحلات: '+error.message);
@@ -284,8 +280,7 @@ function pick(k){
   $('form').classList.remove('hidden');est();$('form').scrollIntoView({behavior:'smooth'});
 }
 
-/* ===== الأجرة ===== */
-function dist(a,b){const r=x=>x*Math.PI/180,h=Math.sin(r(b[0]-a[0])/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(r(b[1]-a[1])/2)**2;return Math.round(12742*Math.asin(Math.sqrt(h))*1.25*10)/10}
+function dist(a,b){const r=x=>x*Math.PI/180,h=Math.sin(r(b[0]-a[0])/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[1]-a[1])/2)**2;return Math.round(12742*Math.asin(Math.sqrt(h))*1.25*10)/10}
 function est(){
   if(!P||!D||!sel){$('fare').textContent='—';$('km').textContent='';return}
   const t=T.find(x=>x.key===sel),km=dist(P,D),n=sel==='shared'?Number($('seats').value):1;
@@ -293,9 +288,9 @@ function est(){
   $('fare').textContent=Math.round((Number(t.base)+km*Number(t.per_km))*n/250)*250+' د.ع';
 }
 
-/* ===== الخريطة عبر OpenLayers (تداعم الحروف العربية بالكامل) ===== */
+/* ===== طلب إذن GPS والموقع تلقائياً ===== */
 function locOk(){try{return localStorage.getItem('locOK')==='1'}catch(e){return false}}
-function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc()}
+function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc();else gps();}
 function locNo(){hide('locModal')}
 
 function openMap(m){
@@ -309,10 +304,15 @@ function openMap(m){
     const projCoord = ol.proj.fromLonLat([c[1], c[0]]);
 
     if(!map){
-      mapView = new ol.View({
-        center: projCoord,
-        zoom: 15
-      });
+      mapView = new ol.View({ center: projCoord, zoom: 15 });
       map = new ol.Map({
         target: 'map',
-    
+        layers: [new ol.layer.Tile({ source: new ol.source.OSM() })],
+        view: mapView
+      });
+    } else {
+      map.updateSize();
+      mapView.setCenter(projCoord);
+      mapView.setZoom(15);
+    }
+    gps(); // طلب الموقع وت
