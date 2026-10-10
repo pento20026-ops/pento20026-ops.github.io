@@ -13,11 +13,8 @@
 tailwind.config={theme:{extend:{colors:{t:{navy:'#0B1F4B',dark:'#07142F',yel:'#FFC107',yeld:'#E0A800',soft:'#FFF8E1'}}}}}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-
-<!-- OpenLayers Map Library (تدعم اللغة العربية بدون حروف مقلوبة) -->
-<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
-<script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
-
+<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
+<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -27,7 +24,6 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
 .card-btn{transition:all .2s ease}.card-btn:active{transform:scale(.96)}
 .sel{border-color:#0B1F4B!important;background-color:#FFC107!important;color:#0B1F4B!important}
 .nav-on{color:#FFC107}.nav-off{color:#9CA3AF}
-.ol-zoom { top: .5em; right: .5em; left: auto; }
 </style>
 </head>
 <body class="text-t-navy">
@@ -76,7 +72,7 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
       <button onclick="gview('gLogin')" class="w-full text-xs font-bold underline">رجوع</button>
     </div>
 
-    <!-- كلمة سر جديدة -->
+    <!-- كلمة سر جديدة (بعد الضغط على رابط البريد) -->
     <div id="gRecover" class="hidden bg-white rounded-3xl p-5 space-y-3 shadow-2xl border-2 border-t-yel">
       <h2 class="font-black text-lg">كلمة سر جديدة</h2>
       <input id="nPass" type="password" dir="ltr" autocomplete="new-password" placeholder="كلمة السر الجديدة" class="in">
@@ -214,6 +210,7 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
   </div>
 </div>
 
+
 <!-- إفصاح الموقع (Google Play) -->
 <div id="locModal" class="fixed inset-0 bg-black/80 z-[150] hidden items-center justify-center p-5">
   <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 border-2 border-t-yel shadow-2xl">
@@ -237,14 +234,18 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=i=>document.getElementById(i);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-const OFFERS=[];
+/* ===== العروض: أضف عروضك هنا ===== */
+const OFFERS=[
+  // {title:'خصم 10% على الرحلات المحلية', desc:'ساري حتى نهاية الشهر', badge:'جديد'}
+];
 
+/* ===== الصوت ===== */
 const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
 function beep(type,f1,f2,vol,dur){try{if(audioCtx.state==='suspended')audioCtx.resume();const o=audioCtx.createOscillator(),g=audioCtx.createGain(),n=audioCtx.currentTime;o.type=type;o.frequency.setValueAtTime(f1,n);if(f2)o.frequency.setValueAtTime(f2,n+.1);g.gain.setValueAtTime(vol,n);g.gain.exponentialRampToValueAtTime(.0001,n+dur);o.connect(g);g.connect(audioCtx.destination);o.start();o.stop(n+dur)}catch(e){}}
 const playClick=()=>beep('sine',800,0,.05,.05);
 const playNotif=()=>beep('triangle',587.33,880,.15,.3);
 
-let T=[],sel=null,P=null,D=null,mode='p',map=null,mapView=null,user=null,ch=null,curId=null;
+let T=[],sel=null,P=null,D=null,mode='p',map=null,user=null,ch=null,curId=null,mapFallback=false;
 const C0=[34.9311,43.4883];
 const STEPS={'جديد':['بانتظار موافقة الإدارة',20],'تم القبول':['تم قبول طلبك، جاري إرسال سائق 🚕',45],'السائق في الطريق':['السائق في الطريق إليك 🚕',70],'بدأت الرحلة':['الرحلة جارية الآن 🛣️',90],'مكتملة':['وصلت بالسلامة ✅',100],'مرفوضة':['عذراً، الطلب مرفوض ❌',100],'ملغاة':['تم إلغاء الرحلة',100],'لم يحضر':['لم يحضر الزبون',100]};
 const END=['مكتملة','مرفوضة','ملغاة','لم يحضر'];
@@ -253,9 +254,11 @@ function toast(t){const e=$('toast');e.textContent=t;e.classList.remove('hidden'
 function show(i){$(i).classList.remove('hidden');$(i).classList.add('flex')}
 function hide(i){$(i).classList.add('hidden');$(i).classList.remove('flex')}
 
+/* ===== التبويبات ===== */
 function tab(n){
   ['home','offers','settings'].forEach(x=>{
-    $('pg-'+x).classList.toggle('hidden',x!==n);$('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
+    $('pg-'+x).classList.toggle('hidden',x!==n);
+    $('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
   });
   window.scrollTo(0,0);
 }
@@ -264,6 +267,7 @@ function drawOffers(){
   `<div class="bg-white border rounded-2xl p-8 text-center text-gray-400"><i class="fa-solid fa-gift text-4xl text-t-yel mb-2"></i><p class="text-sm font-bold">لا توجد عروض حالياً</p><p class="text-xs">تابعنا قريباً</p></div>`;
 }
 
+/* ===== أنواع الرحلات ===== */
 async function loadTypes(){
   const{data,error}=await sb.from('ride_types').select('*').order('sort');
   if(error)return toast('تعذر تحميل أنواع الرحلات: '+error.message);
@@ -277,9 +281,11 @@ function pick(k){
   const t=T.find(x=>x.key===k);
   $('tName').textContent=t.name;
   $('seatBox').classList.toggle('hidden',k!=='shared');$('seatBox').classList.toggle('flex',k==='shared');
-  $('form').classList.remove('hidden');est();$('form').scrollIntoView({behavior:'smooth'});
+  $('form').classList.remove('hidden');est();
+  $('form').scrollIntoView({behavior:'smooth'});
 }
 
+/* ===== الأجرة ===== */
 function dist(a,b){const r=x=>x*Math.PI/180,h=Math.sin(r(b[0]-a[0])/2)**2+Math.cos(r(a[0]))*Math.cos(r(b[0]))*Math.sin(r(b[1]-a[1])/2)**2;return Math.round(12742*Math.asin(Math.sqrt(h))*1.25*10)/10}
 function est(){
   if(!P||!D||!sel){$('fare').textContent='—';$('km').textContent='';return}
@@ -288,35 +294,18 @@ function est(){
   $('fare').textContent=Math.round((Number(t.base)+km*Number(t.per_km))*n/250)*250+' د.ع';
 }
 
-/* ===== الخريطة وطلب الموقع GPS ===== */
+/* ===== الخريطة ===== */
 function locOk(){try{return localStorage.getItem('locOK')==='1'}catch(e){return false}}
-function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc();}
+function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc()}
 function locNo(){hide('locModal')}
 
+const RASTER={version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]};
 function openMap(m){
   mode=m;
   $('mapTitle').textContent=m==='p'?'حدد نقطة الانطلاق':'حدد الوجهة';
   show('mapModal');
   setTimeout(()=>{
     const c=(m==='p'?P:D)||P||C0;
-    if(typeof ol==='undefined')return toast('تعذر تحميل الخريطة، تحقق من الاتصال');
-
-    const projCoord = ol.proj.fromLonLat([c[1], c[0]]);
-
+    if(typeof maplibregl==='undefined')return toast('تعذر تحميل الخريطة، تحقق من الإنترنت');
     if(!map){
-      mapView = new ol.View({ center: projCoord, zoom: 15 });
-      map = new ol.Map({
-        target: 'map',
-        layers: [new ol.layer.Tile({ source: new ol.source.OSM() })],
-        view: mapView
-      });
-    } else {
-      map.updateSize();
-      mapView.setCenter(projCoord);
-      mapView.setZoom(15);
-    }
-  },250);
-}
-
-function gps(){
-  if(!l
+      map=new maplibregl.Map({container:'m
