@@ -13,8 +13,11 @@
 tailwind.config={theme:{extend:{colors:{t:{navy:'#0B1F4B',dark:'#07142F',yel:'#FFC107',yeld:'#E0A800',soft:'#FFF8E1'}}}}}
 </script>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<link rel="stylesheet" href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css"/>
-<script src="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.js"></script>
+
+<!-- OpenLayers Map Library (تضمن دعم اللغة العربية بالكامل وبدون حروف مقلوبة) -->
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/ol@v8.2.0/ol.css">
+<script src="https://cdn.jsdelivr.net/npm/ol@v8.2.0/dist/ol.js"></script>
+
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 <link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800;900&display=swap" rel="stylesheet">
 <style>
@@ -24,6 +27,7 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
 .card-btn{transition:all .2s ease}.card-btn:active{transform:scale(.96)}
 .sel{border-color:#0B1F4B!important;background-color:#FFC107!important;color:#0B1F4B!important}
 .nav-on{color:#FFC107}.nav-off{color:#9CA3AF}
+.ol-zoom { top: .5em; right: .5em; left: auto; }
 </style>
 </head>
 <body class="text-t-navy">
@@ -210,7 +214,6 @@ body{font-family:'Tajawal',sans-serif;background:#F5F7FB;padding-bottom:calc(5re
   </div>
 </div>
 
-
 <!-- إفصاح الموقع (Google Play) -->
 <div id="locModal" class="fixed inset-0 bg-black/80 z-[150] hidden items-center justify-center p-5">
   <div class="bg-white w-full max-w-sm rounded-3xl p-5 space-y-3 border-2 border-t-yel shadow-2xl">
@@ -234,10 +237,8 @@ const sb=supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 const $=i=>document.getElementById(i);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
-/* ===== العروض: أضف عروضك هنا ===== */
-const OFFERS=[
-  // {title:'خصم 10% على الرحلات المحلية', desc:'ساري حتى نهاية الشهر', badge:'جديد'}
-];
+/* ===== العروض ===== */
+const OFFERS=[];
 
 /* ===== الصوت ===== */
 const audioCtx=new(window.AudioContext||window.webkitAudioContext)();
@@ -245,8 +246,8 @@ function beep(type,f1,f2,vol,dur){try{if(audioCtx.state==='suspended')audioCtx.r
 const playClick=()=>beep('sine',800,0,.05,.05);
 const playNotif=()=>beep('triangle',587.33,880,.15,.3);
 
-let T=[],sel=null,P=null,D=null,mode='p',map=null,user=null,ch=null,curId=null,mapFallback=false;
-const C0=[34.9311,43.4883];
+let T=[],sel=null,P=null,D=null,mode='p',map=null,mapView=null,user=null,ch=null,curId=null;
+const C0=[34.9311,43.4883]; // [Lat, Lng]
 const STEPS={'جديد':['بانتظار موافقة الإدارة',20],'تم القبول':['تم قبول طلبك، جاري إرسال سائق 🚕',45],'السائق في الطريق':['السائق في الطريق إليك 🚕',70],'بدأت الرحلة':['الرحلة جارية الآن 🛣️',90],'مكتملة':['وصلت بالسلامة ✅',100],'مرفوضة':['عذراً، الطلب مرفوض ❌',100],'ملغاة':['تم إلغاء الرحلة',100],'لم يحضر':['لم يحضر الزبون',100]};
 const END=['مكتملة','مرفوضة','ملغاة','لم يحضر'];
 
@@ -257,8 +258,7 @@ function hide(i){$(i).classList.add('hidden');$(i).classList.remove('flex')}
 /* ===== التبويبات ===== */
 function tab(n){
   ['home','offers','settings'].forEach(x=>{
-    $('pg-'+x).classList.toggle('hidden',x!==n);
-    $('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
+    $('pg-'+x).classList.toggle('hidden',x!==n);$('nv-'+x).className='py-2.5 flex flex-col items-center gap-0.5 text-[11px] font-bold '+(x===n?'nav-on':'nav-off');
   });
   window.scrollTo(0,0);
 }
@@ -281,8 +281,7 @@ function pick(k){
   const t=T.find(x=>x.key===k);
   $('tName').textContent=t.name;
   $('seatBox').classList.toggle('hidden',k!=='shared');$('seatBox').classList.toggle('flex',k==='shared');
-  $('form').classList.remove('hidden');est();
-  $('form').scrollIntoView({behavior:'smooth'});
+  $('form').classList.remove('hidden');est();$('form').scrollIntoView({behavior:'smooth'});
 }
 
 /* ===== الأجرة ===== */
@@ -294,172 +293,26 @@ function est(){
   $('fare').textContent=Math.round((Number(t.base)+km*Number(t.per_km))*n/250)*250+' د.ع';
 }
 
-/* ===== الخريطة ===== */
+/* ===== الخريطة عبر OpenLayers (تداعم الحروف العربية بالكامل) ===== */
 function locOk(){try{return localStorage.getItem('locOK')==='1'}catch(e){return false}}
 function locYes(){try{localStorage.setItem('locOK','1')}catch(e){}hide('locModal');if(window._afterLoc)window._afterLoc()}
 function locNo(){hide('locModal')}
 
-const RASTER={version:8,sources:{osm:{type:'raster',tiles:['https://tile.openstreetmap.org/{z}/{x}/{y}.png'],tileSize:256,attribution:'© OpenStreetMap'}},layers:[{id:'osm',type:'raster',source:'osm'}]};
 function openMap(m){
   mode=m;
   $('mapTitle').textContent=m==='p'?'حدد نقطة الانطلاق':'حدد الوجهة';
   show('mapModal');
   setTimeout(()=>{
     const c=(m==='p'?P:D)||P||C0;
-    if(typeof maplibregl==='undefined')return toast('تعذر تحميل الخريطة، تحقق من الإنترنت');
+    if(typeof ol==='undefined')return toast('تعذر تحميل الخريطة، تحقق من الاتصال');
+
+    const projCoord = ol.proj.fromLonLat([c[1], c[0]]);
+
     if(!map){
-      map=new maplibregl.Map({container:'map',style:'https://tiles.openfreemap.org/styles/liberty',center:[c[1],c[0]],zoom:14});
-      map.addControl(new maplibregl.NavigationControl({showCompass:false}),'top-left');
-      // إذا فشل مزوّد الخرائط الأساسي نبدّل تلقائياً إلى OpenStreetMap
-      map.on('error',()=>{if(!mapFallback&&!map.isStyleLoaded()){mapFallback=true;map.setStyle(RASTER)}});
-    }else{map.resize();map.jumpTo({center:[c[1],c[0]],zoom:14})}
-    if(m==='p'&&!P)gps();
-  },250);
-}
-function gps(){
-  if(!locOk()){window._afterLoc=gps;show('locModal');return}
-  if(!navigator.geolocation)return toast('تحديد الموقع غير مدعوم');
-  navigator.geolocation.getCurrentPosition(p=>{if(map)map.flyTo({center:[p.coords.longitude,p.coords.latitude],zoom:16})},()=>toast('يرجى تفعيل إذن الموقع (GPS)'),{enableHighAccuracy:true,timeout:15000});
-}
-function confirmLoc(){
-  if(!map)return;
-  const c=map.getCenter(),a=[c.lat,c.lng];
-  if(mode==='p'){P=a;$('pTxt').innerHTML='<i class="fa-solid fa-circle-check text-green-600"></i> تم تحديد الانطلاق'}
-  else{D=a;$('dTxt').innerHTML='<i class="fa-solid fa-circle-check text-green-600"></i> تم تحديد الوجهة'}
-  hide('mapModal');est();
-}
-
-/* ===== تسجيل الدخول ===== */
-function gview(v){['gLoad','gLogin','gSignup','gForgot','gRecover'].forEach(x=>$(x).classList.toggle('hidden',x!==v))}
-function arErr(m){
-  m=String(m||'');
-  if(/Invalid login/i.test(m))return 'البريد الإلكتروني أو كلمة السر غير صحيحة';
-  if(/not confirmed/i.test(m))return 'يرجى تأكيد بريدك من الرسالة المرسلة إليك أولاً';
-  if(/already registered|already been registered/i.test(m))return 'هذا البريد مسجّل مسبقاً، سجّل الدخول';
-  if(/at least 6|weak/i.test(m))return 'كلمة السر ضعيفة (6 أحرف على الأقل)';
-  if(/valid email|invalid format/i.test(m))return 'البريد الإلكتروني غير صالح';
-  if(/rate limit|too many/i.test(m))return 'محاولات كثيرة، انتظر قليلاً ثم أعد المحاولة';
-  if(/fetch|network/i.test(m))return 'لا يوجد اتصال بالإنترنت';
-  return m;
-}
-async function doLogin(){
-  const email=$('lEmail').value.trim(),password=$('lPass').value;
-  if(!email||!password)return toast('أدخل البريد وكلمة السر');
-  const b=$('lBtn');b.disabled=true;
-  const{error}=await sb.auth.signInWithPassword({email,password});
-  b.disabled=false;
-  if(error)toast(arErr(error.message));
-}
-async function doSignUp(){
-  const name=$('sName').value.trim(),phone=$('sPhone').value.trim(),email=$('sEmail').value.trim(),password=$('sPass').value;
-  if(!name||!phone||!email||!password)return toast('أكمل جميع الحقول');
-  if(!$('sAgree').checked)return toast('يجب الموافقة على سياسة الخصوصية');
-  if(!/^[0-9+\s]{9,15}$/.test(phone))return toast('رقم الهاتف غير صحيح');
-  if(password.length<6)return toast('كلمة السر 6 أحرف على الأقل');
-  const b=$('sBtn');b.disabled=true;
-  const{data,error}=await sb.auth.signUp({email,password,options:{data:{name,phone}}});
-  b.disabled=false;
-  if(error)return toast(arErr(error.message));
-  if(!data.session){ // تأكيد البريد مفعّل في Supabase
-    toast('تم إنشاء الحساب — افتح بريدك واضغط رابط التأكيد ثم سجّل الدخول');
-    $('lEmail').value=email;gview('gLogin');
-  }
-}
-async function sendReset(){
-  const email=$('fEmail').value.trim();
-  if(!email)return toast('أدخل بريدك الإلكتروني');
-  const{error}=await sb.auth.resetPasswordForEmail(email,{redirectTo:location.href.split('#')[0].split('?')[0]});
-  if(error)return toast(arErr(error.message));
-  toast('تم إرسال رابط الاسترداد إلى بريدك');gview('gLogin');
-}
-async function setNewPass(){
-  const p=$('nPass').value;
-  if(p.length<6)return toast('كلمة السر 6 أحرف على الأقل');
-  const{error}=await sb.auth.updateUser({password:p});
-  if(error)return toast(arErr(error.message));
-  toast('تم تغيير كلمة السر');applyUser((await sb.auth.getSession()).data.session?.user||null);
-}
-async function delAcc(){
-  if(!user)return;
-  if(!confirm('تأكيد حذف الحساب نهائياً؟'))return;
-  const{error}=await sb.rpc('delete_my_account');
-  if(error)return toast(error.message);
-  await sb.auth.signOut();toast('تم حذف الحساب');
-}
-
-function applyUser(u){
-  user=u;
-  if(!u){
-    $('gate').classList.remove('hidden');gview('gLogin');
-    $('tracker').classList.add('hidden');
-    if(ch){sb.removeChannel(ch);ch=null}
-    return;
-  }
-  $('gate').classList.add('hidden');
-  $('uMail').textContent=u.email||'';
-  const md=u.user_metadata||{};
-  if(!$('cName').value)$('cName').value=md.name||'';
-  if(!$('cPhone').value)$('cPhone').value=md.phone||'';
-  loadTypes();loadActive();
-}
-sb.auth.onAuthStateChange((ev,s)=>{
-  if(ev==='PASSWORD_RECOVERY'){$('gate').classList.remove('hidden');gview('gRecover');return}
-  if(ev==='INITIAL_SESSION')return;
-  applyUser(s?.user||null);
-});
-
-/* ===== طلب رحلة ===== */
-async function request(){
-  if(!user)return $('gate').classList.remove('hidden');
-  const name=$('cName').value.trim(),phone=$('cPhone').value.trim(),note=$('note').value.trim()||null;
-  if(!sel)return toast('اختر نوع الرحلة');
-  if(!name||!phone)return toast('أدخل الاسم ورقم الهاتف');
-  if(!P||!D)return toast('حدد الانطلاق والوجهة');
-  const b=$('rideBtn');b.disabled=true;b.textContent='جاري إرسال الطلب...';
-  const{data,error}=await sb.from('rides').insert([{user_id:user.id,customer_name:name,customer_phone:phone,type:sel,seats:Number($('seats').value),pickup_lat:P[0],pickup_lng:P[1],pickup_text:note,drop_lat:D[0],drop_lng:D[1],drop_text:note}]).select().single();
-  b.disabled=false;b.textContent='اطلب التكسي الآن';
-  if(error)return toast('فشل الطلب: '+error.message);
-  playNotif();toast('✅ تم إرسال الطلب بنجاح');track(data);
-}
-function showStatus(o){
-  curId=o.id;
-  $('cancelBtn').classList.toggle('hidden',o.status!=='جديد');
-  const s=STEPS[o.status]||[o.status,50];
-  $('trTxt').textContent=s[0];$('trBar').style.width=s[1]+'%';
-  const d=$('drv');
-  if(o.driver_name&&!END.includes(o.status)){
-    d.classList.remove('hidden');
-    d.innerHTML=`<i class="fa-solid fa-id-card text-t-yel"></i> السائق: <b>${esc(o.driver_name)}</b> · <a href="tel:${esc(o.driver_phone)}" class="text-t-yel underline font-bold">${esc(o.driver_phone||'')}</a>`;
-  }else d.classList.add('hidden');
-  if(END.includes(o.status))setTimeout(()=>{if(curId===o.id)$('tracker').classList.add('hidden')},8000);
-}
-function track(o){
-  $('tracker').classList.remove('hidden');showStatus(o);
-  if(ch)sb.removeChannel(ch);
-  ch=sb.channel('r'+o.id).on('postgres_changes',{event:'UPDATE',schema:'public',table:'rides',filter:`id=eq.${o.id}`},p=>{
-    playNotif();showStatus(p.new);
-    if(p.new.status==='مكتملة')toast('🎉 وصلت بالسلامة!');
-    if(p.new.status==='مرفوضة')toast('تم رفض الطلب من الإدارة');
-  }).subscribe();
-}
-async function loadActive(){
-  const{data}=await sb.from('rides').select('*').eq('user_id',user.id).order('created_at',{ascending:false}).limit(1);
-  if(data&&data[0]&&!END.includes(data[0].status))track(data[0]);
-}
-async function cancelRide(){
-  if(!confirm('تأكيد إلغاء الرحلة؟'))return;
-  const{data,error}=await sb.from('rides').update({status:'ملغاة'}).eq('id',curId).select();
-  if(error||!data.length)return toast('لا يمكن الإلغاء الآن');
-  showStatus(data[0]);toast('تم إلغاء الرحلة');
-}
-
-/* ===== تشغيل ===== */
-tab('home');drawOffers();
-sb.auth.getSession().then(({data})=>{
-  // لو الرابط رابط استرداد، onAuthStateChange يعرض شاشة كلمة السر الجديدة
-  if(!/type=recovery/.test(location.hash))applyUser(data.session?.user||null);
-}).catch(()=>{applyUser(null)});
-</script>
-<script>if('serviceWorker' in navigator)navigator.serviceWorker.register('sw.js')</script>
-</body>
-</html>
+      mapView = new ol.View({
+        center: projCoord,
+        zoom: 15
+      });
+      map = new ol.Map({
+        target: 'map',
+    
